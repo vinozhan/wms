@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema({
   accountStatus: {
     type: String,
     enum: ['active', 'suspended', 'pending'],
-    default: 'pending'
+    default: 'active'
   },
   wasteBins: [{
     type: mongoose.Schema.Types.ObjectId,

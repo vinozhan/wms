@@ -7,9 +7,15 @@ const AuthContext = createContext();
 const authReducer = (state, action) => {
   switch (action.type) {
     case 'SET_LOADING':
-      return { ...state, loading: action.payload };
+      return { ...state, loading: action.payload, error: null };
     case 'SET_USER':
-      return { ...state, user: action.payload, isAuthenticated: !!action.payload };
+      return { 
+        ...state, 
+        user: action.payload, 
+        isAuthenticated: !!action.payload,
+        loading: false,
+        error: null 
+      };
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false };
     case 'LOGOUT':

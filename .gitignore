@@ -25,3 +25,14 @@ pnpm-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# conf
+*.conf
+
+# yml
+*.yml
+
+# docker
+backend/Dockerfile
+frontend/Dockerfile
+

@@ -45,7 +45,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
