@@ -278,12 +278,6 @@ npm run preview
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## Testing Requirements
-
-- Minimum 80% code coverage
-- All API endpoints must have tests
-- Frontend components must have unit tests
-- Integration tests for critical user flows
 
 ## Security Features
 
@@ -294,16 +288,6 @@ npm run preview
 - CORS protection
 - Helmet.js for security headers
 - Role-based access control
-
-## Future Enhancements
-
-- Mobile application (React Native)
-- IoT sensor integration
-- Machine learning for route optimization
-- Advanced analytics with predictive modeling
-- Multi-language support
-- Push notifications
-- Integration with city management systems
 
 ## License
 
