@@ -140,4 +140,41 @@ router.post('/:id/process',
   }
 );
 
+router.post('/payhere-notify', async (req, res) => {
+  try {
+    const {
+      merchant_id,
+      order_id,
+      payhere_amount,
+      payhere_currency,
+      status_code,
+      md5sig
+    } = req.body;
+
+    console.log('PayHere Notification:', req.body);
+
+    // Verify the payment status
+    if (status_code === '2') { // Success
+      const payment = await Payment.findOne({ paymentId: order_id });
+      
+      if (payment) {
+        await payment.confirmPayment();
+        console.log(`Payment ${order_id} confirmed via PayHere`);
+      }
+    } else {
+      const payment = await Payment.findOne({ paymentId: order_id });
+      
+      if (payment) {
+        await payment.failPayment('PayHere payment failed');
+        console.log(`Payment ${order_id} failed via PayHere`);
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('PayHere notification error:', error);
+    res.status(500).send('Error');
+  }
+});
+
 module.exports = router;

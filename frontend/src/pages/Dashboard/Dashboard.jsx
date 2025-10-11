@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { wasteBinAPI, collectionAPI, userAPI } from '../../utils/api';
 import { 
@@ -10,15 +11,125 @@ import {
   MapPinIcon
 } from '@heroicons/react/24/outline';
 import { AlertTriangle, Recycle, TrendingUp, Calendar } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+// Quick Action Button Component
+const QuickActionButton = ({ icon, title, description, onClick }) => (
+  <button 
+    onClick={onClick}
+    className="w-full text-left p-3 border rounded hover:bg-gray-50 transition-colors"
+  >
+    <div className="flex items-center">
+      {icon}
+      <div>
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+    </div>
+  </button>
+);
+
+// Special Collection Modal Component
+const SpecialCollectionModal = ({ isOpen, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    collectionType: 'bulk',
+    description: '',
+    preferredDate: '',
+    contactPhone: ''
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule Special Collection</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Collection Type</label>
+              <select 
+                value={formData.collectionType}
+                onChange={(e) => setFormData(prev => ({ ...prev, collectionType: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="bulk">Bulk Items</option>
+                <option value="hazardous">Hazardous Waste</option>
+                <option value="electronic">Electronic Items</option>
+                <option value="garden">Garden Waste</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea 
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                rows="3"
+                placeholder="Describe the items to be collected..."
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Preferred Date</label>
+              <input 
+                type="date"
+                value={formData.preferredDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, preferredDate: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                min={new Date().toISOString().split('T')[0]}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
+              <input 
+                type="tel"
+                value={formData.contactPhone}
+                onChange={(e) => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="Contact number for collection"
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+              >
+                Schedule Collection
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     wasteBins: {},
     collections: {},
     loading: true
   });
   const [recentActivity, setRecentActivity] = useState([]);
+  const [showSpecialCollectionModal, setShowSpecialCollectionModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -64,6 +175,15 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setStats(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleSpecialCollection = async (formData) => {
+    try {
+      // In a real application, you would call an API here
+      toast.success(`Special collection for ${formData.collectionType} scheduled for ${formData.preferredDate}`);
+    } catch (error) {
+      toast.error('Failed to schedule special collection');
     }
   };
 
@@ -348,36 +468,34 @@ const Dashboard = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
-            <button className="w-full text-left p-3 border rounded hover:bg-gray-50">
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium">Schedule Special Collection</p>
-                  <p className="text-xs text-gray-500">For bulk or hazardous items</p>
-                </div>
-              </div>
-            </button>
-            <button className="w-full text-left p-3 border rounded hover:bg-gray-50">
-              <div className="flex items-center">
-                <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium">View Bills & Payments</p>
-                  <p className="text-xs text-gray-500">Manage your account</p>
-                </div>
-              </div>
-            </button>
-            <button className="w-full text-left p-3 border rounded hover:bg-gray-50">
-              <div className="flex items-center">
-                <MapPinIcon className="h-5 w-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium">Manage Waste Bins</p>
-                  <p className="text-xs text-gray-500">Add or update bin locations</p>
-                </div>
-              </div>
-            </button>
+            <QuickActionButton
+              icon={<Calendar className="h-5 w-5 text-gray-400 mr-3" />}
+              title="Schedule Special Collection"
+              description="For bulk or hazardous items"
+              onClick={() => setShowSpecialCollectionModal(true)}
+            />
+            <QuickActionButton
+              icon={<CurrencyDollarIcon className="h-5 w-5 text-gray-400 mr-3" />}
+              title="View Bills & Payments"
+              description="Manage your account"
+              onClick={() => navigate('/payments')}
+            />
+            <QuickActionButton
+              icon={<MapPinIcon className="h-5 w-5 text-gray-400 mr-3" />}
+              title="Manage Waste Bins"
+              description="Add or update bin locations"
+              onClick={() => navigate('/waste-bins')}
+            />
           </div>
         </div>
       </div>
+
+      {/* Special Collection Modal */}
+      <SpecialCollectionModal
+        isOpen={showSpecialCollectionModal}
+        onClose={() => setShowSpecialCollectionModal(false)}
+        onSubmit={handleSpecialCollection}
+      />
     </div>
   );
 
