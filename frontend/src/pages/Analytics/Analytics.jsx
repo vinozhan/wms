@@ -64,9 +64,12 @@ const Analytics = () => {
       setGeneratingReport(true);
       
       const reportData = {
-        type: reportType,
-        dateRange: dateRange.startDate && dateRange.endDate ? dateRange : null,
-        includeCharts: true
+        reportType: reportType,
+        dateRange: dateRange.startDate && dateRange.endDate ? dateRange : {
+          startDate: new Date(Date.now() - (reportType === 'weekly' ? 7 : reportType === 'monthly' ? 30 : reportType === 'quarterly' ? 90 : 365) * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date().toISOString()
+        },
+        scope: 'all'
       };
 
       const response = await analyticsAPI.generateReport(reportData);
@@ -121,7 +124,7 @@ const Analytics = () => {
               <option value="weekly">Weekly Report</option>
               <option value="monthly">Monthly Report</option>
               <option value="quarterly">Quarterly Report</option>
-              <option value="yearly">Yearly Report</option>
+              <option value="annual">Annual Report</option>
             </select>
             
             <button
@@ -390,7 +393,7 @@ const Analytics = () => {
                 <option value="weekly">Weekly Report</option>
                 <option value="monthly">Monthly Report</option>
                 <option value="quarterly">Quarterly Report</option>
-                <option value="yearly">Yearly Report</option>
+                <option value="annual">Annual Report</option>
                 <option value="custom">Custom Date Range</option>
               </select>
             </div>

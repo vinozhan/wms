@@ -325,8 +325,12 @@ const Dashboard = () => {
       setGeneratingReport(true);
       
       const reportData = {
-        type: 'weekly',
-        includeCharts: true
+        reportType: 'weekly',
+        dateRange: {
+          startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date().toISOString()
+        },
+        scope: 'all'
       };
 
       const response = await analyticsAPI.generateReport(reportData);
