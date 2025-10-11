@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { wasteBinAPI, collectionAPI, userAPI } from '../../utils/api';
+import { wasteBinAPI, collectionAPI, userAPI, analyticsAPI } from '../../utils/api';
 import { 
   TrashIcon, 
   TruckIcon, 
   CurrencyDollarIcon,
   ChartBarIcon,
   BellIcon,
-  MapPinIcon
+  MapPinIcon,
+  DocumentArrowDownIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { AlertTriangle, Recycle, TrendingUp, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -120,6 +122,111 @@ const SpecialCollectionModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
+// Admin Schedule Collection Modal Component
+const AdminScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    wasteBin: '',
+    scheduledDate: '',
+    wasteType: 'general',
+    collector: '',
+    priority: 'normal'
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule Collection</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Waste Bin ID</label>
+              <input 
+                type="text"
+                value={formData.wasteBin}
+                onChange={(e) => setFormData(prev => ({ ...prev, wasteBin: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="Enter bin ID"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Scheduled Date & Time</label>
+              <input 
+                type="datetime-local"
+                value={formData.scheduledDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                min={new Date().toISOString().slice(0, 16)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Waste Type</label>
+              <select 
+                value={formData.wasteType}
+                onChange={(e) => setFormData(prev => ({ ...prev, wasteType: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="general">General Waste</option>
+                <option value="recyclable">Recyclable</option>
+                <option value="organic">Organic</option>
+                <option value="hazardous">Hazardous</option>
+                <option value="electronic">Electronic</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Collector ID (Optional)</label>
+              <input 
+                type="text"
+                value={formData.collector}
+                onChange={(e) => setFormData(prev => ({ ...prev, collector: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="Assign to specific collector"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Priority</label>
+              <select 
+                value={formData.priority}
+                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+              >
+                Schedule Collection
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -130,6 +237,8 @@ const Dashboard = () => {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [showSpecialCollectionModal, setShowSpecialCollectionModal] = useState(false);
+  const [showAdminScheduleModal, setShowAdminScheduleModal] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -187,6 +296,63 @@ const Dashboard = () => {
     }
   };
 
+  const handleAdminScheduleCollection = async (formData) => {
+    try {
+      const collectionData = {
+        wasteBin: formData.wasteBin,
+        scheduledDate: formData.scheduledDate,
+        wasteData: {
+          wasteType: formData.wasteType,
+          priority: formData.priority
+        }
+      };
+
+      if (formData.collector) {
+        collectionData.collector = formData.collector;
+      }
+
+      await collectionAPI.createCollection(collectionData);
+      toast.success('Collection scheduled successfully!');
+      fetchDashboardData(); // Refresh dashboard data
+    } catch (error) {
+      console.error('Failed to schedule collection:', error);
+      toast.error('Failed to schedule collection');
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      setGeneratingReport(true);
+      
+      const reportData = {
+        type: 'weekly',
+        includeCharts: true
+      };
+
+      const response = await analyticsAPI.generateReport(reportData);
+      
+      // Create download link for the report
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+        type: 'application/json'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `waste-management-report-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Report generated and downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+      toast.error('Failed to generate report');
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   if (stats.loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -200,8 +366,24 @@ const Dashboard = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-            Generate Report
+          <button
+            onClick={() => setShowAdminScheduleModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center space-x-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>Schedule Collection</span>
+          </button>
+          <button
+            onClick={handleGenerateReport}
+            disabled={generatingReport}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2 disabled:opacity-50"
+          >
+            {generatingReport ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <DocumentArrowDownIcon className="h-5 w-5" />
+            )}
+            <span>{generatingReport ? 'Generating...' : 'Generate Report'}</span>
           </button>
         </div>
       </div>
@@ -362,6 +544,13 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Admin Schedule Collection Modal */}
+      <AdminScheduleCollectionModal
+        isOpen={showAdminScheduleModal}
+        onClose={() => setShowAdminScheduleModal(false)}
+        onSubmit={handleAdminScheduleCollection}
+      />
     </div>
   );
 

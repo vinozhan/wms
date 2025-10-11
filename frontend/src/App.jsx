@@ -7,7 +7,10 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import WasteBins from './pages/WasteBins/WasteBins';
+import Collections from './pages/Collections/Collections';
 import Payments from './pages/Payments/Payments';
+import Analytics from './pages/Analytics/Analytics';
+import Users from './pages/Users/Users';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -121,10 +124,10 @@ function App() {
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="waste-bins" element={<WasteBins />} />
-              <Route path="collections" element={<div>Collections Page</div>} />
+              <Route path="collections" element={<Collections />} />
               <Route path="payments" element={<Payments />} />
-              <Route path="analytics" element={<div>Analytics Page</div>} />
-              <Route path="users" element={<div>Users Page</div>} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="users" element={<Users />} />
               <Route path="profile" element={<div>Profile Page</div>} />
               <Route path="settings" element={<div>Settings Page</div>} />
             </Route>
