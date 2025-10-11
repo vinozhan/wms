@@ -45,6 +45,7 @@ const Collections = () => {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'scheduled': return 'bg-yellow-100 text-yellow-800';
+      case 'requested': return 'bg-orange-100 text-orange-800';
       case 'missed': return 'bg-red-100 text-red-800';
       case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -192,6 +193,24 @@ const Collections = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
+                <CalendarIcon className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Requested</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {collections.filter(c => c.status === 'requested').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
                 <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -210,7 +229,7 @@ const Collections = () => {
       {/* Filter Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {['all', 'scheduled', 'in_progress', 'completed', 'missed'].map((status) => (
+          {['all', 'requested', 'scheduled', 'in_progress', 'completed', 'missed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}

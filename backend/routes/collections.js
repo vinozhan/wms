@@ -11,10 +11,12 @@ const {
 
 const router = express.Router();
 
+
 router.post('/', 
   authMiddleware,
-  authorize('admin', 'collector'),
+  authorize('admin', 'collector', 'resident', 'business'),
   collectionValidation.create,
+  handleValidationErrors,
   async (req, res) => {
     try {
       const {
@@ -32,23 +34,53 @@ router.post('/',
         });
       }
 
+      // Check for duplicate requests (only for resident/business users)
+      if (req.user.userType === 'resident' || req.user.userType === 'business') {
+        const existingRequest = await Collection.findOne({
+          wasteBin,
+          requester: req.user._id,
+          status: 'requested'
+        });
+
+        if (existingRequest) {
+          return res.status(400).json({ 
+            error: 'A collection request for this bin is already pending' 
+          });
+        }
+      }
+
+      // Generate a unique collection ID
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000);
+      const collectionId = `COL-${timestamp}-${random}`;
+
       const collection = new Collection({
+        collectionId,
         wasteBin,
-        collector: req.user._id,
+        collector: req.user.userType === 'admin' || req.user.userType === 'collector' 
+          ? req.user._id 
+          : null, // For resident/business requests, no collector assigned yet
+        requester: req.user._id, // Always track who requested the collection
         scheduledDate,
         wasteData,
         location,
-        verification
+        verification,
+        status: req.user.userType === 'admin' || req.user.userType === 'collector' 
+          ? 'scheduled' 
+          : 'requested' // Residents/business users create requests, not scheduled collections
       });
 
       await collection.save();
 
       const populatedCollection = await Collection.findById(collection._id)
         .populate('wasteBin', 'binId binType owner')
-        .populate('collector', 'name');
+        .populate('collector', 'name')
+        .populate('requester', 'name email');
 
       res.status(201).json({
-        message: 'Collection scheduled successfully',
+        message: req.user.userType === 'admin' || req.user.userType === 'collector' 
+          ? 'Collection scheduled successfully'
+          : 'Collection request submitted successfully',
         collection: populatedCollection
       });
 
