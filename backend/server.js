@@ -11,21 +11,27 @@ const wasteBinRoutes = require('./routes/wasteBins');
 const collectionRoutes = require('./routes/collections');
 const paymentRoutes = require('./routes/payments');
 const analyticsRoutes = require('./routes/analytics');
+const binRequestRoutes = require('./routes/binRequests');
 
 const app = express();
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000, // Increased limit for development
   message: 'Too many requests from this IP, please try again later.'
 });
 
 app.use(limiter);
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-frontend-domain.com']
-    : ['http://localhost:3000', 'http://localhost:5173']
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -36,6 +42,7 @@ app.use('/api/waste-bins', wasteBinRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/bin-requests', binRequestRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 

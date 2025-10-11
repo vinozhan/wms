@@ -24,6 +24,7 @@ const Navbar = () => {
     { name: 'Payments', href: '/payments', roles: ['resident', 'business', 'admin'] },
     { name: 'Analytics', href: '/analytics', roles: ['admin'] },
     { name: 'Users', href: '/users', roles: ['admin'] },
+    { name: 'Bin Requests', href: '/bin-requests', roles: ['admin'] },
   ];
 
   const handleLogout = async () => {

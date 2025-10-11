@@ -92,4 +92,14 @@ export const analyticsAPI = {
   getReport: (id) => api.get(`/analytics/${id}`),
 };
 
+export const binRequestAPI = {
+  createBinRequest: (requestData) => api.post('/bin-requests', requestData),
+  getBinRequests: (params) => api.get('/bin-requests', { params }),
+  getBinRequest: (id) => api.get(`/bin-requests/${id}`),
+  approveBinRequest: (id, data) => api.patch(`/bin-requests/${id}/approve`, data),
+  rejectBinRequest: (id, data) => api.patch(`/bin-requests/${id}/reject`, data),
+  completeBinRequest: (id, data) => api.patch(`/bin-requests/${id}/complete`, data),
+  getBinRequestStats: () => api.get('/bin-requests/stats/overview'),
+};
+
 export default api;

@@ -11,6 +11,7 @@ import Collections from './pages/Collections/Collections';
 import Payments from './pages/Payments/Payments';
 import Analytics from './pages/Analytics/Analytics';
 import Users from './pages/Users/Users';
+import BinRequests from './pages/BinRequests/BinRequests';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -128,6 +129,7 @@ function App() {
               <Route path="payments" element={<Payments />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="users" element={<Users />} />
+              <Route path="bin-requests" element={<BinRequests />} />
               <Route path="profile" element={<div>Profile Page</div>} />
               <Route path="settings" element={<div>Settings Page</div>} />
             </Route>

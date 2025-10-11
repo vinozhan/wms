@@ -559,7 +559,10 @@ const Dashboard = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
         <div className="flex space-x-3">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+          <button 
+            onClick={() => setShowSpecialCollectionModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          >
             Schedule Collection
           </button>
         </div>
