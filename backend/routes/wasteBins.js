@@ -275,7 +275,6 @@ router.delete('/:id',
 
 router.patch('/:id/sensor', 
   authMiddleware,
-  authorize('admin', 'collector'),
   paramValidation.mongoId,
   wasteBinValidation.updateSensor,
   async (req, res) => {
@@ -286,6 +285,15 @@ router.patch('/:id/sensor',
       if (!wasteBin) {
         return res.status(404).json({ 
           error: 'Waste bin not found' 
+        });
+      }
+
+      // Check permissions: admin/collector can update any bin, residents/business can only update their own bins
+      if (req.user.userType !== 'admin' && 
+          req.user.userType !== 'collector' && 
+          wasteBin.owner.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ 
+          error: 'Access denied. You can only update sensor data for bins you own.' 
         });
       }
 

@@ -13,7 +13,8 @@ import {
   BinDetailsModal, 
   CreateBinModal, 
   RequestBinModal,
-  BinRequestCard 
+  BinRequestCard,
+  ScheduleCollectionModal 
 } from '../../components/WasteBins';
 
 const WasteBins = () => {
@@ -28,6 +29,8 @@ const WasteBins = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [binRequests, setBinRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('bins');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedBinForScheduling, setSelectedBinForScheduling] = useState(null);
 
   useEffect(() => {
     fetchWasteBins();
@@ -145,6 +148,84 @@ const WasteBins = () => {
     } catch (error) {
       console.error('Failed to submit bin request:', error);
       toast.error('Failed to submit bin request. Please try again.');
+    }
+  };
+
+  const handleUpdateFillLevel = async (binId, newFillLevel) => {
+    try {
+      // Use the sensor data update endpoint
+      await wasteBinAPI.updateSensorData(binId, {
+        fillLevel: newFillLevel,
+        lastUpdated: new Date().toISOString(),
+        manuallyUpdated: true,
+        updatedBy: user._id
+      });
+      
+      // Update local state
+      setWasteBins(bins => 
+        bins.map(bin => 
+          bin._id === binId 
+            ? {
+                ...bin,
+                sensorData: {
+                  ...bin.sensorData,
+                  fillLevel: newFillLevel,
+                  lastUpdated: new Date().toISOString(),
+                  manuallyUpdated: true,
+                  updatedBy: user._id
+                }
+              }
+            : bin
+        )
+      );
+      
+      // Update selected bin if it's the one being edited
+      if (selectedBin?._id === binId) {
+        setSelectedBin(prev => ({
+          ...prev,
+          sensorData: {
+            ...prev.sensorData,
+            fillLevel: newFillLevel,
+            lastUpdated: new Date().toISOString(),
+            manuallyUpdated: true,
+            updatedBy: user._id
+          }
+        }));
+      }
+      
+    } catch (error) {
+      console.error('Failed to update fill level:', error);
+      // Provide more specific error messages
+      if (error.response?.status === 403) {
+        throw new Error('You do not have permission to update this bin');
+      } else if (error.response?.status === 404) {
+        throw new Error('Bin not found');
+      } else {
+        throw new Error('Failed to update fill level. Please try again.');
+      }
+    }
+  };
+
+  const handleScheduleCollection = (bin) => {
+    if (user?.userType === 'collector' && hasPendingRequest(bin._id)) {
+      toast.error('Collection already scheduled for this bin');
+      return;
+    }
+    
+    setSelectedBinForScheduling(bin);
+    setShowScheduleModal(true);
+  };
+
+  const handleSubmitScheduledCollection = async (collectionData) => {
+    try {
+      await collectionAPI.createCollection(collectionData);
+      
+      // Refresh both waste bins and pending requests
+      fetchWasteBins();
+      fetchPendingRequests();
+    } catch (error) {
+      console.error('Failed to schedule collection:', error);
+      throw error; // Let the modal handle the error message
     }
   };
 
@@ -317,56 +398,59 @@ const WasteBins = () => {
         </div>
       )}
 
-      {/* Content based on active tab */}
-      {activeTab === 'bins' ? (
-        // Waste Bins Grid
-        <>
-          {wasteBins.length === 0 ? (
-            <div className="text-center py-12">
-              <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No waste bins</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by requesting your first waste bin.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {wasteBins.map((bin) => (
-                <WasteBinCard
-                  key={bin._id}
-                  bin={bin}
-                  onRequestCollection={handleRequestCollection}
-                  onViewDetails={handleViewDetails}
-                  hasPendingRequest={hasPendingRequest(bin._id)}
-                />
-              ))}
-            </div>
-          )}
-        </>
+      {/* Content based on user type and active tab */}
+      {(user?.userType === 'admin' || user?.userType === 'collector') ? (
+        // Admin/Collector view with tabs
+        activeTab === 'bins' ? (
+          // Waste Bins Grid
+          <>
+            {wasteBins.length === 0 ? (
+              <div className="text-center py-12">
+                <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No waste bins</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by creating your first waste bin.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {wasteBins.map((bin) => (
+                  <WasteBinCard
+                    key={bin._id}
+                    bin={bin}
+                    onRequestCollection={handleRequestCollection}
+                    onScheduleCollection={handleScheduleCollection}
+                    onViewDetails={handleViewDetails}
+                    hasPendingRequest={hasPendingRequest(bin._id)}
+                    userType={user?.userType}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          // Bin Requests Grid
+          <>
+            {binRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No bin requests</h3>
+                <p className="mt-1 text-sm text-gray-500">No pending bin requests at the moment.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {binRequests.map((request) => (
+                  <BinRequestCard
+                    key={request._id}
+                    request={request}
+                    onApprove={handleApproveBinRequest}
+                    onReject={handleRejectBinRequest}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )
       ) : (
-        // Bin Requests Grid
-        <>
-          {binRequests.length === 0 ? (
-            <div className="text-center py-12">
-              <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No bin requests</h3>
-              <p className="mt-1 text-sm text-gray-500">No pending bin requests at the moment.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {binRequests.map((request) => (
-                <BinRequestCard
-                  key={request._id}
-                  request={request}
-                  onApprove={handleApproveBinRequest}
-                  onReject={handleRejectBinRequest}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* For residents/business, show only bins without tabs */}
-      {user?.userType !== 'admin' && user?.userType !== 'collector' && (
+        // Resident/Business view without tabs
         <>
           {wasteBins.length === 0 ? (
             <div className="text-center py-12">
@@ -381,8 +465,10 @@ const WasteBins = () => {
                   key={bin._id}
                   bin={bin}
                   onRequestCollection={handleRequestCollection}
+                  onScheduleCollection={handleScheduleCollection}
                   onViewDetails={handleViewDetails}
                   hasPendingRequest={hasPendingRequest(bin._id)}
+                  userType={user?.userType}
                 />
               ))}
             </div>
@@ -417,6 +503,18 @@ const WasteBins = () => {
           setShowBinDetailsModal(false);
           setSelectedBin(null);
         }}
+        onUpdateFillLevel={handleUpdateFillLevel}
+      />
+
+      {/* Schedule Collection Modal */}
+      <ScheduleCollectionModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setSelectedBinForScheduling(null);
+        }}
+        onSubmit={handleSubmitScheduledCollection}
+        selectedBin={selectedBinForScheduling}
       />
     </div>
   );

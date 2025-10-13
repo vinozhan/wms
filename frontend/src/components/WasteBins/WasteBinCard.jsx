@@ -2,7 +2,9 @@ import React from 'react';
 import { 
   TrashIcon, 
   MapPinIcon,
-  ExclamationTriangleIcon 
+  ExclamationTriangleIcon,
+  CalendarDaysIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { Thermometer, Droplets, BarChart3, Recycle } from 'lucide-react';
 import { StatusBadge, ProgressBar } from '../common';
@@ -10,8 +12,10 @@ import { StatusBadge, ProgressBar } from '../common';
 const WasteBinCard = ({ 
   bin, 
   onRequestCollection, 
+  onScheduleCollection,
   onViewDetails,
-  hasPendingRequest = false
+  hasPendingRequest = false,
+  userType
 }) => {
   const getBinTypeIcon = (binType) => {
     switch (binType) {
@@ -115,20 +119,41 @@ const WasteBinCard = ({
 
         {/* Actions */}
         <div className="flex space-x-2">
-          <button
-            onClick={() => onRequestCollection(bin)}
-            disabled={hasPendingRequest}
-            className={`flex-1 px-3 py-2 rounded-md text-sm ${
-              hasPendingRequest
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {hasPendingRequest ? 'Request Pending' : 'Request Collection'}
-          </button>
+          {(userType === 'resident' || userType === 'business') ? (
+            // Residents and Business users - Request Collection
+            <button
+              onClick={() => onRequestCollection(bin)}
+              disabled={hasPendingRequest}
+              className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                hasPendingRequest
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
+              {hasPendingRequest ? 'Request Pending' : 'Request Collection'}
+            </button>
+          ) : (
+            // Collectors and Admins - Schedule Collection
+            <button
+              onClick={() => onScheduleCollection ? onScheduleCollection(bin) : onRequestCollection(bin)}
+              disabled={hasPendingRequest && userType === 'collector'}
+              className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
+                hasPendingRequest && userType === 'collector'
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : userType === 'admin'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-orange-600 text-white hover:bg-orange-700'
+              }`}
+            >
+              <CalendarDaysIcon className="h-4 w-4 mr-1" />
+              {userType === 'admin' ? 'Manage Collection' :
+               hasPendingRequest ? 'Already Scheduled' : 'Schedule Collection'}
+            </button>
+          )}
           <button 
             onClick={() => onViewDetails(bin)}
-            className="flex-1 border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
+            className="flex-1 border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-sm hover:bg-gray-50 flex items-center justify-center"
           >
             View Details
           </button>

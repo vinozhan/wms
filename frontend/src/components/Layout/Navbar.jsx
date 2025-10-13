@@ -105,14 +105,15 @@ const Navbar = () => {
                 <span className="text-xl font-bold text-white">Eco Waste LK</span>
               </Link>
             </div>
-            <div className="hidden md:ml-6 md:flex md:space-x-8">
+            <div className="hidden md:ml-6 md:flex md:items-center md:space-x-8">
               {filteredNavigation.map((item) => (
                 <div key={item.name} className="relative">
                   {item.subItems ? (
-                    <div
-                      className="relative"
-                      onMouseEnter={() => setOpenDropdown(item.name)}
-                      onMouseLeave={() => setOpenDropdown(null)}
+                    <div 
+                      className="relative group"
+                      onMouseLeave={() => {
+                        setTimeout(() => setOpenDropdown(null), 100);
+                      }}
                     >
                       <button
                         className={`${
@@ -120,12 +121,15 @@ const Navbar = () => {
                             ? 'border-green-200 text-white'
                             : 'border-transparent text-green-100 hover:border-green-300 hover:text-white'
                         } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                        onMouseEnter={() => setOpenDropdown(item.name)}
                       >
                         {item.name}
                         <ChevronDownIcon className="ml-1 h-4 w-4" />
                       </button>
                       {openDropdown === item.name && (
-                        <div className="absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                        <div 
+                          className="absolute top-full left-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                        >
                           <div className="py-1">
                             {item.subItems.filter(subItem => 
                               !user || subItem.roles.includes(user.userType)
@@ -138,6 +142,7 @@ const Navbar = () => {
                                     ? 'bg-green-50 text-green-700'
                                     : 'text-gray-700 hover:bg-gray-50'
                                 } block px-4 py-2 text-sm`}
+                                onClick={() => setOpenDropdown(null)}
                               >
                                 {subItem.name}
                               </Link>
