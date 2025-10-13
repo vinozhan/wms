@@ -44,7 +44,7 @@ const Navbar = () => {
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
                 <RecycleIcon className="h-8 w-8 text-white mr-2" />
-                <span className="text-xl font-bold text-white">Smart WMS</span>
+                <span className="text-xl font-bold text-white">Eco Waste LK</span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
@@ -75,7 +75,7 @@ const Navbar = () => {
             <div className="flex-shrink-0 flex items-center">
               <Link to="/dashboard" className="flex items-center">
                 <RecycleIcon className="h-8 w-8 text-white mr-2" />
-                <span className="text-xl font-bold text-white">Smart WMS</span>
+                <span className="text-xl font-bold text-white">Eco Waste LK</span>
               </Link>
             </div>
             <div className="hidden md:ml-6 md:flex md:space-x-8">

@@ -76,6 +76,8 @@ export const collectionAPI = {
   completeCollection: (id, completionData) => api.patch(`/collections/${id}/complete`, completionData),
   startCollection: (id) => api.patch(`/collections/${id}/start`),
   markCollectionMissed: (id, reason) => api.patch(`/collections/${id}/miss`, { reason }),
+  approveCollection: (id, approvalData) => api.patch(`/collections/${id}/approve`, approvalData),
+  rejectCollection: (id, reason) => api.patch(`/collections/${id}/reject`, { reason }),
   getCollectionStats: () => api.get('/collections/stats/overview'),
 };
 
@@ -84,6 +86,7 @@ export const paymentAPI = {
   getPayments: (params) => api.get('/payments', { params }),
   getPayment: (id) => api.get(`/payments/${id}`),
   processPayment: (id, transactionData) => api.post(`/payments/${id}/process`, transactionData),
+  paymentPayHere: (paymentId) => api.post('/payments/payment-payhere', { paymentId }),
 };
 
 export const analyticsAPI = {
@@ -100,6 +103,16 @@ export const binRequestAPI = {
   rejectBinRequest: (id, data) => api.patch(`/bin-requests/${id}/reject`, data),
   completeBinRequest: (id, data) => api.patch(`/bin-requests/${id}/complete`, data),
   getBinRequestStats: () => api.get('/bin-requests/stats/overview'),
+};
+
+export const billingAPI = {
+  generateMyBill: (params) => api.post('/billing/generate-my-bill', {}, { params }),
+  generateUserBill: (userId, params) => api.post(`/billing/generate-user-bill/${userId}`, {}, { params }),
+  generateAllBills: (params) => api.post('/billing/generate-all-bills', {}, { params }),
+  createManualBill: (userId, billingData) => api.post(`/billing/manual-bill/${userId}`, billingData),
+  getBillingRates: (params) => api.get('/billing/rates', { params }),
+  getMySummary: () => api.get('/billing/my-summary'),
+  getUserSummary: (userId) => api.get(`/billing/summary/${userId}`),
 };
 
 export default api;

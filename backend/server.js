@@ -12,6 +12,7 @@ const collectionRoutes = require('./routes/collections');
 const paymentRoutes = require('./routes/payments');
 const analyticsRoutes = require('./routes/analytics');
 const binRequestRoutes = require('./routes/binRequests');
+const billingRoutes = require('./routes/billing');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bin-requests', binRequestRoutes);
+app.use('/api/billing', billingRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 

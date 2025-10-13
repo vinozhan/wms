@@ -21,6 +21,7 @@ router.post('/',
     try {
       const {
         wasteBin,
+        collector,
         scheduledDate,
         wasteData,
         location,
@@ -57,7 +58,9 @@ router.post('/',
       const collection = new Collection({
         collectionId,
         wasteBin,
-        collector: req.user.userType === 'admin' || req.user.userType === 'collector' 
+        collector: req.user.userType === 'admin' 
+          ? collector || req.user._id  // Admin can assign specific collector or defaults to self
+          : req.user.userType === 'collector' 
           ? req.user._id 
           : null, // For resident/business requests, no collector assigned yet
         requester: req.user._id, // Always track who requested the collection
@@ -236,6 +239,19 @@ router.patch('/:id/complete',
 
       await collection.wasteBin.recordCollection(req.user._id, weight, volume);
 
+      // Auto-generate bill when collection is completed (Event-driven billing)
+      try {
+        const BillingService = require('../services/billingService');
+        const bill = await BillingService.generateBillOnCollection(collection._id);
+        
+        if (bill) {
+          console.log(`Auto-generated bill ${bill.invoiceNumber} for collection ${collection.collectionId}`);
+        }
+      } catch (billingError) {
+        console.error('Failed to auto-generate bill:', billingError);
+        // Don't fail the collection completion if billing fails
+      }
+
       const updatedCollection = await Collection.findById(collection._id)
         .populate('wasteBin', 'binId binType')
         .populate('collector', 'name');
@@ -286,9 +302,14 @@ router.patch('/:id/start',
       collection.status = 'in_progress';
       await collection.save();
 
+      const updatedCollection = await Collection.findById(collection._id)
+        .populate('wasteBin', 'binId binType location owner')
+        .populate('collector', 'name')
+        .populate('requester', 'name email');
+
       res.json({
         message: 'Collection started successfully',
-        collection
+        collection: updatedCollection
       });
 
     } catch (error) {
@@ -334,6 +355,104 @@ router.patch('/:id/miss',
       console.error('Mark collection missed error:', error);
       res.status(500).json({ 
         error: 'Failed to mark collection as missed' 
+      });
+    }
+  }
+);
+
+// Approve/Schedule collection request (Admin only)
+router.patch('/:id/approve', 
+  authMiddleware,
+  authorize('admin'),
+  paramValidation.mongoId,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const { collector, scheduledDate } = req.body;
+
+      const collection = await Collection.findById(req.params.id);
+
+      if (!collection) {
+        return res.status(404).json({ 
+          error: 'Collection not found' 
+        });
+      }
+
+      if (collection.status !== 'requested') {
+        return res.status(400).json({ 
+          error: 'Only requested collections can be approved' 
+        });
+      }
+
+      // Update collection to scheduled status
+      collection.collector = collector;
+      collection.status = 'scheduled';
+      if (scheduledDate) {
+        collection.scheduledDate = new Date(scheduledDate);
+      }
+
+      await collection.save();
+
+      const updatedCollection = await Collection.findById(collection._id)
+        .populate('wasteBin', 'binId binType')
+        .populate('collector', 'name')
+        .populate('requester', 'name email');
+
+      res.json({
+        message: 'Collection request approved and scheduled',
+        collection: updatedCollection
+      });
+
+    } catch (error) {
+      console.error('Approve collection error:', error);
+      res.status(500).json({ 
+        error: 'Failed to approve collection' 
+      });
+    }
+  }
+);
+
+// Reject collection request (Admin only)
+router.patch('/:id/reject', 
+  authMiddleware,
+  authorize('admin'),
+  paramValidation.mongoId,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const { reason } = req.body;
+
+      const collection = await Collection.findById(req.params.id);
+
+      if (!collection) {
+        return res.status(404).json({ 
+          error: 'Collection not found' 
+        });
+      }
+
+      if (collection.status !== 'requested') {
+        return res.status(400).json({ 
+          error: 'Only requested collections can be rejected' 
+        });
+      }
+
+      collection.status = 'cancelled';
+      collection.notes = {
+        ...collection.notes,
+        adminNotes: reason || 'Request rejected by admin'
+      };
+
+      await collection.save();
+
+      res.json({
+        message: 'Collection request rejected',
+        collection
+      });
+
+    } catch (error) {
+      console.error('Reject collection error:', error);
+      res.status(500).json({ 
+        error: 'Failed to reject collection' 
       });
     }
   }
