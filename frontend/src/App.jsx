@@ -12,6 +12,11 @@ import Payments from './pages/Payments/Payments';
 import Analytics from './pages/Analytics/Analytics';
 import Users from './pages/Users/Users';
 import BinRequests from './pages/BinRequests/BinRequests';
+import PaytBilling from './pages/PAYT/PaytBilling';
+import RouteOptimization from './pages/Routes/RouteOptimization';
+import RecyclingCredits from './pages/RecyclingCredits/RecyclingCredits';
+import CollectorFeedback from './pages/Collectors/CollectorFeedback';
+import EnvironmentalDashboard from './pages/Environmental/EnvironmentalDashboard';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -130,6 +135,11 @@ function App() {
               <Route path="analytics" element={<Analytics />} />
               <Route path="users" element={<Users />} />
               <Route path="bin-requests" element={<BinRequests />} />
+              <Route path="payt-billing" element={<PaytBilling />} />
+              <Route path="route-optimization" element={<RouteOptimization />} />
+              <Route path="recycling-credits" element={<RecyclingCredits />} />
+              <Route path="collector-feedback" element={<CollectorFeedback />} />
+              <Route path="environmental" element={<EnvironmentalDashboard />} />
               <Route path="profile" element={<div>Profile Page</div>} />
               <Route path="settings" element={<div>Settings Page</div>} />
             </Route>

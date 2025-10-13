@@ -115,4 +115,62 @@ export const billingAPI = {
   getUserSummary: (userId) => api.get(`/billing/summary/${userId}`),
 };
 
+// PAYT (Pay-As-You-Throw) API
+export const paytAPI = {
+  calculateBill: (userId, billingPeriod, options) => api.post('/payt/calculate-bill', { userId, billingPeriod, options }),
+  generateInvoice: (billData, options) => api.post('/payt/generate-invoice', { billData, options }),
+  getWasteStatistics: (userId, period) => api.get(`/payt/waste-statistics/${userId}`, { params: { period } }),
+  getOptimizationRecommendations: (userId) => api.get(`/payt/optimization-recommendations/${userId}`),
+  getBillingRates: (district) => api.get('/payt/billing-rates', { params: { district } }),
+  createBillingRate: (rateData) => api.post('/payt/billing-rates', rateData),
+  updateBillingRate: (id, rateData) => api.put(`/payt/billing-rates/${id}`, rateData),
+};
+
+// Route Optimization API
+export const routeOptimizationAPI = {
+  optimizeRoute: (routeId, algorithm, options) => api.post('/route-optimization/optimize', { routeId, algorithm, options }),
+  optimizeMultipleRoutes: (routeIds, algorithm, options) => api.post('/route-optimization/optimize-multiple', { routeIds, algorithm, options }),
+  getOptimizationRecommendations: (routeId) => api.get(`/route-optimization/recommendations/${routeId}`),
+  getOptimizationHistory: (routeId) => api.get(`/route-optimization/history/${routeId}`),
+  createRoute: (routeData) => api.post('/routes', routeData),
+  getRoutes: (params) => api.get('/routes', { params }),
+  getRoute: (id) => api.get(`/routes/${id}`),
+  updateRoute: (id, routeData) => api.put(`/routes/${id}`, routeData),
+  deleteRoute: (id) => api.delete(`/routes/${id}`),
+};
+
+// Recycling Credits API
+export const recyclingCreditsAPI = {
+  processCollectionCredits: (collectionId, verifierId) => api.post('/recycling-credits/process', { collectionId, verifierId }),
+  getUserCreditSummary: (userId, period) => api.get(`/recycling-credits/summary/${userId}`, { params: { period } }),
+  processCreditPayout: (creditId, paymentMethod, processedBy) => api.post('/recycling-credits/payout', { creditId, paymentMethod, processedBy }),
+  getUserCredits: (userId, params) => api.get(`/recycling-credits/user/${userId}`, { params }),
+  getCreditDetails: (creditId) => api.get(`/recycling-credits/${creditId}`),
+  disputeCredit: (creditId, reason, disputedBy) => api.post(`/recycling-credits/${creditId}/dispute`, { reason, disputedBy }),
+  generateCreditReport: (scope, scopeId, period) => api.post('/recycling-credits/report', { scope, scopeId, period }),
+  getUserAchievements: (userId) => api.get(`/recycling-credits/achievements/${userId}`),
+};
+
+// Feedback System API
+export const feedbackAPI = {
+  generateCollectionFeedback: (collectionId, scanResult, options) => api.post('/feedback/generate', { collectionId, scanResult, options }),
+  generateBulkFeedback: (collectionIds, scanResults, options) => api.post('/feedback/generate-bulk', { collectionIds, scanResults, options }),
+  streamFeedback: (collectionId, options) => api.post('/feedback/stream', { collectionId, options }),
+  updateDeviceSettings: (deviceId, settings) => api.put(`/feedback/device-settings/${deviceId}`, settings),
+  getFeedbackHistory: (collectionId) => api.get(`/feedback/history/${collectionId}`),
+};
+
+// Environmental Impact API
+export const environmentalAPI = {
+  calculateCollectionImpact: (collectionId) => api.post('/environmental/calculate-impact', { collectionId }),
+  aggregateImpacts: (query, period) => api.post('/environmental/aggregate', { query, period }),
+  generateEnvironmentalReport: (scope, scopeId, period) => api.post('/environmental/report', { scope, scopeId, period }),
+  calculateCarbonCredits: (impactIds) => api.post('/environmental/carbon-credits', { impactIds }),
+  getUserImpactSummary: (userId, period) => api.get(`/environmental/user-impact/${userId}`, { params: { period } }),
+  getDistrictImpact: (district, period) => api.get(`/environmental/district-impact/${district}`, { params: { period } }),
+  getSystemImpact: (period) => api.get('/environmental/system-impact', { params: { period } }),
+  getImpactDetails: (impactId) => api.get(`/environmental/impact/${impactId}`),
+  getSustainabilityMetrics: (scope, scopeId) => api.get('/environmental/sustainability', { params: { scope, scopeId } }),
+};
+
 export default api;
