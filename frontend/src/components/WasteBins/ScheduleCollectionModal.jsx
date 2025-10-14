@@ -3,7 +3,7 @@ import { CalendarIcon, MapPinIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroi
 import { userAPI } from '../../utils/api';
 import toast from 'react-hot-toast';
 
-const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => {
+const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin, currentUser }) => {
   const [formData, setFormData] = useState({
     collector: '',
     scheduledDate: '',
@@ -24,10 +24,12 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
         ...prev,
         wasteType: selectedBin.binType,
         priority: selectedBin.sensorData?.fillLevel >= 80 ? 'urgent' : 
-                 selectedBin.sensorData?.fillLevel >= 60 ? 'high' : 'normal'
+                 selectedBin.sensorData?.fillLevel >= 60 ? 'high' : 'normal',
+        // Auto-fill collector if current user is a collector
+        collector: currentUser?.userType === 'collector' ? currentUser._id : ''
       }));
     }
-  }, [isOpen, selectedBin]);
+  }, [isOpen, selectedBin, currentUser]);
 
   const fetchCollectors = async () => {
     try {
@@ -70,7 +72,7 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
         address: selectedBin.location?.address
       },
       verification: {
-        method: 'scheduled_collection'
+        method: 'manual_entry'
       },
       notes: {
         adminNotes: formData.notes
@@ -82,7 +84,7 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
       await onSubmit(collectionData);
       // Reset form
       setFormData({
-        collector: '',
+        collector: currentUser?.userType === 'collector' ? currentUser._id : '',
         scheduledDate: '',
         scheduledTime: '',
         wasteType: selectedBin?.binType || '',
@@ -90,7 +92,6 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
         notes: ''
       });
       onClose();
-      toast.success('Collection scheduled successfully!');
     } catch (error) {
       console.error('Failed to schedule collection:', error);
       toast.error('Failed to schedule collection');
@@ -155,7 +156,10 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
                 name="collector"
                 value={formData.collector}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  currentUser?.userType === 'collector' ? 'bg-gray-50 cursor-not-allowed' : ''
+                }`}
+                disabled={currentUser?.userType === 'collector'}
                 required
               >
                 <option value="">Select a collector</option>
@@ -165,6 +169,9 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin }) => 
                   </option>
                 ))}
               </select>
+              {currentUser?.userType === 'collector' && (
+                <p className="text-xs text-gray-500 mt-1">Auto-assigned to you</p>
+              )}
             </div>
 
             {/* Date and Time */}
