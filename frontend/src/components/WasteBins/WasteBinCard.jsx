@@ -41,14 +41,14 @@ const WasteBinCard = ({
   const getScheduleButtonConfig = () => {
     if (collectionStatus === 'scheduled') {
       return {
-        text: 'Collection Scheduled',
+        text: 'Scheduled',
         className: 'bg-green-500 text-white cursor-not-allowed',
         disabled: true,
         icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
       };
     } else if (collectionStatus === 'in_progress') {
       return {
-        text: 'Collection In Progress',
+        text: 'In Progress',
         className: 'bg-yellow-500 text-white cursor-not-allowed',
         disabled: true,
         icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />

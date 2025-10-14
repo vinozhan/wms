@@ -5,14 +5,19 @@ import {
   MapPinIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon
+  ClockIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { StatusBadge } from '../common';
 
 const BinRequestCard = ({ 
   request, 
   onApprove, 
-  onReject 
+  onReject,
+  onOpenApprovalModal,
+  onEdit,
+  onDelete
 }) => {
   const getStatusColor = (status) => {
     switch (status) {
@@ -82,28 +87,59 @@ const BinRequestCard = ({
 
         {/* Actions */}
         {request.status === 'pending' && (
-          <div className="flex space-x-2">
-            <button
-              onClick={() => onApprove(request._id)}
-              className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 flex items-center justify-center"
-            >
-              <CheckCircleIcon className="h-4 w-4 mr-1" />
-              Approve
-            </button>
-            <button 
-              onClick={() => onReject(request._id)}
-              className="flex-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 flex items-center justify-center"
-            >
-              <XCircleIcon className="h-4 w-4 mr-1" />
-              Reject
-            </button>
-          </div>
+          <>
+            {/* Admin/Collector Actions */}
+            {(onApprove || onReject) && (
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => onOpenApprovalModal ? onOpenApprovalModal(request) : onApprove(request._id)}
+                  className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 flex items-center justify-center"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-1" />
+                  {onOpenApprovalModal ? 'Review & Approve' : 'Approve'}
+                </button>
+                <button 
+                  onClick={() => onReject(request._id)}
+                  className="flex-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 flex items-center justify-center"
+                >
+                  <XCircleIcon className="h-4 w-4 mr-1" />
+                  Reject
+                </button>
+              </div>
+            )}
+
+            {/* Resident/Business Actions */}
+            {(onEdit || onDelete) && !(onApprove || onReject) && (
+              <div className="flex space-x-2">
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(request)}
+                    className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700 flex items-center justify-center"
+                  >
+                    <PencilIcon className="h-4 w-4 mr-1" />
+                    Edit Request
+                  </button>
+                )}
+                {onDelete && (
+                  <button 
+                    onClick={() => onDelete(request._id)}
+                    className="flex-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 flex items-center justify-center"
+                  >
+                    <TrashIcon className="h-4 w-4 mr-1" />
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
 
+        {/* Status message for completed requests */}
         {request.status !== 'pending' && (
           <div className="text-center py-2">
             <span className="text-sm text-gray-500">
-              {request.status === 'approved' ? 'Request has been approved' : 'Request has been rejected'}
+              {request.status === 'approved' && 'Request has been approved - Bin will be installed soon'}
+              {request.status === 'rejected' && 'Request has been rejected'}
             </span>
           </div>
         )}

@@ -36,7 +36,7 @@ const Navbar = () => {
       href: '/payments',
       roles: ['resident', 'business', 'admin'],
       subItems: [
-        { name: 'Payment History', href: '/payments', roles: ['resident', 'business', 'admin'] },
+        { name: 'Payments', href: '/payments', roles: ['resident', 'business', 'admin'] },
         { name: 'PAYT Billing', href: '/payt-billing', roles: ['resident', 'business', 'admin'] },
         { name: 'Recycling Credits', href: '/recycling-credits', roles: ['resident', 'business', 'admin'] }
       ]
@@ -51,7 +51,6 @@ const Navbar = () => {
       ]
     },
     { name: 'Users', href: '/users', roles: ['admin'] },
-    { name: 'Bin Requests', href: '/bin-requests', roles: ['admin'] },
   ];
 
   const handleLogout = async () => {

@@ -4,9 +4,10 @@ import { wasteBinAPI, userAPI, binRequestAPI, collectionAPI } from '../../utils/
 import { 
   TrashIcon, 
   PlusIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { Recycle, BarChart3 } from 'lucide-react';
+import { Recycle, BarChart3, Clock, CheckCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { 
   WasteBinCard, 
@@ -14,6 +15,7 @@ import {
   CreateBinModal, 
   RequestBinModal,
   BinRequestCard,
+  BinApprovalModal,
   ScheduleCollectionModal 
 } from '../../components/WasteBins';
 
@@ -32,14 +34,18 @@ const WasteBins = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedBinForScheduling, setSelectedBinForScheduling] = useState(null);
   const [scheduledCollections, setScheduledCollections] = useState([]);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [selectedRequestForApproval, setSelectedRequestForApproval] = useState(null);
+  const [showEditRequestModal, setShowEditRequestModal] = useState(false);
+  const [selectedRequestForEdit, setSelectedRequestForEdit] = useState(null);
 
   useEffect(() => {
     fetchWasteBins();
     fetchPendingRequests();
     fetchScheduledCollections();
+    fetchBinRequests(); // All users can see their own bin requests
     if (user?.userType === 'admin' || user?.userType === 'collector') {
       fetchUsers();
-      fetchBinRequests();
     }
   }, [user]);
 
@@ -290,14 +296,31 @@ const WasteBins = () => {
     setShowBinDetailsModal(true);
   };
 
-  const handleApproveBinRequest = async (requestId) => {
+  const handleOpenApprovalModal = (request) => {
+    setSelectedRequestForApproval(request);
+    setShowApprovalModal(true);
+  };
+
+  const handleApproveBinRequest = async (requestId, binData) => {
     try {
+      // First approve the request
       await binRequestAPI.approveBinRequest(requestId, {});
-      toast.success('Bin request approved successfully!');
+      
+      // Then create the actual waste bin
+      await wasteBinAPI.createWasteBin(binData);
+      
+      toast.success('Bin request approved and waste bin created successfully!');
+      
+      // Refresh both bins and requests
+      fetchWasteBins();
       fetchBinRequests();
+      
+      // Close modal
+      setShowApprovalModal(false);
+      setSelectedRequestForApproval(null);
     } catch (error) {
       console.error('Failed to approve bin request:', error);
-      toast.error('Failed to approve bin request.');
+      toast.error('Failed to approve bin request and create bin.');
     }
   };
 
@@ -309,6 +332,37 @@ const WasteBins = () => {
     } catch (error) {
       console.error('Failed to reject bin request:', error);
       toast.error('Failed to reject bin request.');
+    }
+  };
+
+  const handleEditRequest = (request) => {
+    setSelectedRequestForEdit(request);
+    setShowEditRequestModal(true);
+  };
+
+  const handleDeleteRequest = async (requestId) => {
+    if (window.confirm('Are you sure you want to delete this bin request?')) {
+      try {
+        await binRequestAPI.deleteBinRequest(requestId);
+        toast.success('Bin request deleted successfully!');
+        fetchBinRequests();
+      } catch (error) {
+        console.error('Failed to delete bin request:', error);
+        toast.error('Failed to delete bin request.');
+      }
+    }
+  };
+
+  const handleUpdateRequest = async (requestData) => {
+    try {
+      await binRequestAPI.updateBinRequest(selectedRequestForEdit._id, requestData);
+      toast.success('Bin request updated successfully!');
+      fetchBinRequests();
+      setShowEditRequestModal(false);
+      setSelectedRequestForEdit(null);
+    } catch (error) {
+      console.error('Failed to update bin request:', error);
+      toast.error('Failed to update bin request.');
     }
   };
 
@@ -345,175 +399,136 @@ const WasteBins = () => {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrashIcon className="h-6 w-6 text-gray-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Bins</dt>
-                  <dd className="text-lg font-medium text-gray-900">{wasteBins.length}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Need Collection</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {wasteBins.filter(bin => bin.sensorData?.fillLevel >= 80 || bin.status === 'full').length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Recycle className="h-6 w-6 text-green-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Recyclable</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {wasteBins.filter(bin => bin.binType === 'recyclable').length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BarChart3 className="h-6 w-6 text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Avg Fill Level</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {wasteBins.length > 0 
-                      ? Math.round(wasteBins.reduce((sum, bin) => sum + (bin.sensorData?.fillLevel || 0), 0) / wasteBins.length)
-                      : 0}%
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Tabs - Available for all user types */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('bins')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'bins'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {user?.userType === 'admin' || user?.userType === 'collector' ? 'Waste Bins' : 'My Waste Bins'}
+            <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
+              {wasteBins.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'requests'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {user?.userType === 'admin' || user?.userType === 'collector' ? 'Bin Requests' : 'My Requests'}
+            <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
+              {user?.userType === 'admin' || user?.userType === 'collector' 
+                ? binRequests.filter(req => req.status === 'pending').length
+                : binRequests.length
+              }
+            </span>
+          </button>
+        </nav>
       </div>
 
-      {/* Tabs */}
-      {(user?.userType === 'admin' || user?.userType === 'collector') && (
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('bins')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'bins'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Waste Bins
-              <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
-                {wasteBins.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'requests'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Bin Requests
-              <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
-                {binRequests.filter(req => req.status === 'pending').length}
-              </span>
-            </button>
-          </nav>
-        </div>
-      )}
-
-      {/* Content based on user type and active tab */}
-      {(user?.userType === 'admin' || user?.userType === 'collector') ? (
-        // Admin/Collector view with tabs
-        activeTab === 'bins' ? (
-          // Waste Bins Grid
-          <>
-            {wasteBins.length === 0 ? (
-              <div className="text-center py-12">
-                <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No waste bins</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by creating your first waste bin.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {wasteBins.map((bin) => (
-                  <WasteBinCard
-                    key={bin._id}
-                    bin={bin}
-                    onRequestCollection={handleRequestCollection}
-                    onScheduleCollection={handleScheduleCollection}
-                    onViewDetails={handleViewDetails}
-                    hasPendingRequest={hasPendingRequest(bin._id)}
-                    collectionStatus={getCollectionStatus(bin._id)}
-                    userType={user?.userType}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          // Bin Requests Grid
-          <>
-            {binRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No bin requests</h3>
-                <p className="mt-1 text-sm text-gray-500">No pending bin requests at the moment.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {binRequests.map((request) => (
-                  <BinRequestCard
-                    key={request._id}
-                    request={request}
-                    onApprove={handleApproveBinRequest}
-                    onReject={handleRejectBinRequest}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )
-      ) : (
-        // Resident/Business view without tabs
+      {/* Content based on active tab */}
+      {activeTab === 'bins' ? (
+        // Waste Bins Grid (for all user types)
         <>
+          {/* Waste Bins Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <TrashIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Total Bins</dt>
+                      <dd className="text-lg font-medium text-gray-900">{wasteBins.length}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Need Collection</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {wasteBins.filter(bin => bin.sensorData?.fillLevel >= 80 || bin.status === 'full').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Recycle className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Recyclable</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {wasteBins.filter(bin => bin.binType === 'recyclable').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <BarChart3 className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Avg Fill Level</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {wasteBins.length > 0 
+                          ? Math.round(wasteBins.reduce((sum, bin) => sum + (bin.sensorData?.fillLevel || 0), 0) / wasteBins.length)
+                          : 0}%
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {wasteBins.length === 0 ? (
             <div className="text-center py-12">
               <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No waste bins</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by requesting your first waste bin.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                {user?.userType === 'admin' || user?.userType === 'collector' 
+                  ? 'No waste bins' 
+                  : 'No waste bins yet'
+                }
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {user?.userType === 'admin' || user?.userType === 'collector'
+                  ? 'Get started by creating your first waste bin.'
+                  : 'Request your first waste bin to get started.'
+                }
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -527,6 +542,116 @@ const WasteBins = () => {
                   hasPendingRequest={hasPendingRequest(bin._id)}
                   collectionStatus={getCollectionStatus(bin._id)}
                   userType={user?.userType}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        // Bin Requests Grid (for all user types)
+        <>
+          {/* Bin Requests Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Clock className="h-6 w-6 text-yellow-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {binRequests.filter(r => r.status === 'pending').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <CheckCircle className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Approved</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {binRequests.filter(r => r.status === 'approved').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {binRequests.filter(r => r.status === 'completed').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <X className="h-6 w-6 text-red-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Rejected</dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {binRequests.filter(r => r.status === 'rejected').length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {binRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                {user?.userType === 'admin' || user?.userType === 'collector'
+                  ? 'No bin requests'
+                  : 'No requests yet'
+                }
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {user?.userType === 'admin' || user?.userType === 'collector'
+                  ? 'No pending bin requests at the moment.'
+                  : 'Submit your first bin request to get started.'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {binRequests.map((request) => (
+                <BinRequestCard
+                  key={request._id}
+                  request={request}
+                  onApprove={user?.userType === 'admin' || user?.userType === 'collector' ? handleApproveBinRequest : null}
+                  onReject={user?.userType === 'admin' || user?.userType === 'collector' ? handleRejectBinRequest : null}
+                  onOpenApprovalModal={user?.userType === 'admin' || user?.userType === 'collector' ? handleOpenApprovalModal : null}
+                  onEdit={user?.userType === 'resident' || user?.userType === 'business' ? handleEditRequest : null}
+                  onDelete={user?.userType === 'resident' || user?.userType === 'business' ? handleDeleteRequest : null}
                 />
               ))}
             </div>
@@ -574,6 +699,30 @@ const WasteBins = () => {
         onSubmit={handleSubmitScheduledCollection}
         selectedBin={selectedBinForScheduling}
         currentUser={user}
+      />
+
+      {/* Bin Approval Modal */}
+      <BinApprovalModal
+        isOpen={showApprovalModal}
+        onClose={() => {
+          setShowApprovalModal(false);
+          setSelectedRequestForApproval(null);
+        }}
+        onApprove={handleApproveBinRequest}
+        request={selectedRequestForApproval}
+      />
+
+      {/* Edit Request Modal */}
+      <RequestBinModal
+        isOpen={showEditRequestModal}
+        onClose={() => {
+          setShowEditRequestModal(false);
+          setSelectedRequestForEdit(null);
+        }}
+        onSubmit={handleUpdateRequest}
+        currentUser={user}
+        editMode={true}
+        existingRequest={selectedRequestForEdit}
       />
     </div>
   );
