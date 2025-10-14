@@ -31,15 +31,26 @@ const WasteBins = () => {
   const [activeTab, setActiveTab] = useState('bins');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedBinForScheduling, setSelectedBinForScheduling] = useState(null);
+  const [scheduledCollections, setScheduledCollections] = useState([]);
 
   useEffect(() => {
     fetchWasteBins();
     fetchPendingRequests();
+    fetchScheduledCollections();
     if (user?.userType === 'admin' || user?.userType === 'collector') {
       fetchUsers();
       fetchBinRequests();
     }
   }, [user]);
+
+  // Refresh collection status every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchScheduledCollections();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchWasteBins = async () => {
     try {
@@ -86,6 +97,36 @@ const WasteBins = () => {
       console.error('Failed to fetch bin requests:', error);
       // Don't show error toast as this is not critical
     }
+  };
+
+  const fetchScheduledCollections = async () => {
+    try {
+      // Only fetch active collections (scheduled and in_progress)
+      // Completed collections should not affect button state
+      const response = await collectionAPI.getCollections({ 
+        status: ['scheduled', 'in_progress'] 
+      });
+      setScheduledCollections(response.data.collections);
+    } catch (error) {
+      console.error('Failed to fetch scheduled collections:', error);
+      // Don't show error toast as this is not critical
+    }
+  };
+
+  const getCollectionStatus = (binId) => {
+    if (!binId) return null;
+    
+    const collection = scheduledCollections.find(collection => {
+      if (!collection || !collection.wasteBin || !collection.status) return false;
+      const wasteBinId = typeof collection.wasteBin === 'string' 
+        ? collection.wasteBin 
+        : collection.wasteBin._id;
+      return wasteBinId === binId && ['scheduled', 'in_progress'].includes(collection.status);
+    });
+
+    if (!collection) return null;
+    
+    return collection.status;
   };
 
 
@@ -161,7 +202,7 @@ const WasteBins = () => {
         updatedBy: user._id
       });
       
-      // Update local state
+      // Update local state with calculated capacity
       setWasteBins(bins => 
         bins.map(bin => 
           bin._id === binId 
@@ -173,6 +214,10 @@ const WasteBins = () => {
                   lastUpdated: new Date().toISOString(),
                   manuallyUpdated: true,
                   updatedBy: user._id
+                },
+                capacity: {
+                  ...bin.capacity,
+                  current: Math.round((newFillLevel / 100) * bin.capacity.total * 10) / 10
                 }
               }
             : bin
@@ -189,6 +234,10 @@ const WasteBins = () => {
             lastUpdated: new Date().toISOString(),
             manuallyUpdated: true,
             updatedBy: user._id
+          },
+          capacity: {
+            ...prev.capacity,
+            current: Math.round((newFillLevel / 100) * prev.capacity.total * 10) / 10
           }
         }));
       }
@@ -220,9 +269,16 @@ const WasteBins = () => {
     try {
       await collectionAPI.createCollection(collectionData);
       
-      // Refresh both waste bins and pending requests
+      // Refresh all relevant data
       fetchWasteBins();
       fetchPendingRequests();
+      fetchScheduledCollections();
+      
+      // Close modal
+      setShowScheduleModal(false);
+      setSelectedBinForScheduling(null);
+      
+      toast.success('Collection scheduled successfully!');
     } catch (error) {
       console.error('Failed to schedule collection:', error);
       throw error; // Let the modal handle the error message
@@ -420,6 +476,7 @@ const WasteBins = () => {
                     onScheduleCollection={handleScheduleCollection}
                     onViewDetails={handleViewDetails}
                     hasPendingRequest={hasPendingRequest(bin._id)}
+                    collectionStatus={getCollectionStatus(bin._id)}
                     userType={user?.userType}
                   />
                 ))}
@@ -468,6 +525,7 @@ const WasteBins = () => {
                   onScheduleCollection={handleScheduleCollection}
                   onViewDetails={handleViewDetails}
                   hasPendingRequest={hasPendingRequest(bin._id)}
+                  collectionStatus={getCollectionStatus(bin._id)}
                   userType={user?.userType}
                 />
               ))}
@@ -515,6 +573,7 @@ const WasteBins = () => {
         }}
         onSubmit={handleSubmitScheduledCollection}
         selectedBin={selectedBinForScheduling}
+        currentUser={user}
       />
     </div>
   );

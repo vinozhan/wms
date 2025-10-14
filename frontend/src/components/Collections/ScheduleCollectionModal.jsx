@@ -3,7 +3,7 @@ import { CalendarIcon, MapPinIcon, TruckIcon, UserIcon } from '@heroicons/react/
 import { wasteBinAPI, userAPI } from '../../utils/api';
 import toast from 'react-hot-toast';
 
-const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
+const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit, selectedBin, currentUser }) => {
   const [formData, setFormData] = useState({
     wasteBin: '',
     collector: '',
@@ -21,8 +21,23 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
   useEffect(() => {
     if (isOpen) {
       fetchData();
+      // Auto-select bin if provided
+      if (selectedBin) {
+        setFormData(prev => ({
+          ...prev,
+          wasteBin: selectedBin._id,
+          wasteType: selectedBin.binType || 'general'
+        }));
+      }
+      // Auto-select collector if current user is a collector
+      if (currentUser?.userType === 'collector') {
+        setFormData(prev => ({
+          ...prev,
+          collector: currentUser._id
+        }));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, selectedBin, currentUser]);
 
   const fetchData = async () => {
     try {
@@ -153,7 +168,10 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
                 name="collector"
                 value={formData.collector}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                disabled={currentUser?.userType === 'collector'}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  currentUser?.userType === 'collector' ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
                 required
               >
                 <option value="">Select a collector</option>
@@ -163,6 +181,11 @@ const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
                   </option>
                 ))}
               </select>
+              {currentUser?.userType === 'collector' && (
+                <p className="text-sm text-gray-500 mt-1">
+                  As a collector, you are automatically assigned to this collection.
+                </p>
+              )}
             </div>
 
             {/* Date and Time */}

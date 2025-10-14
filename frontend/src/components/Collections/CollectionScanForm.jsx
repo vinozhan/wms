@@ -3,9 +3,23 @@ import { QrCodeIcon, ScaleIcon, CubeIcon, ExclamationTriangleIcon } from '@heroi
 import toast from 'react-hot-toast';
 
 const CollectionScanForm = ({ collection, onComplete, onCancel }) => {
+  const getCurrentVolume = () => {
+    if (!collection?.wasteBin) return '';
+    const bin = collection.wasteBin;
+    // Use the calculated current capacity if available, otherwise calculate it
+    if (bin.capacity?.current) {
+      return bin.capacity.current.toString();
+    }
+    // Fallback calculation if current capacity is not available
+    const fillLevel = bin.sensorData?.fillLevel || 0;
+    const totalCapacity = bin.capacity?.total || 0;
+    const currentVolume = (fillLevel / 100) * totalCapacity;
+    return currentVolume.toFixed(1);
+  };
+
   const [formData, setFormData] = useState({
     weight: '',
-    volume: '',
+    volume: getCurrentVolume(),
     wasteType: collection?.wasteBin?.binType || 'general',
     contaminated: false,
     notes: '',
@@ -17,6 +31,14 @@ const CollectionScanForm = ({ collection, onComplete, onCancel }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update volume when collection data changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      volume: getCurrentVolume()
+    }));
+  }, [collection]);
 
   const wasteTypes = [
     { value: 'general', label: 'General Waste', color: 'bg-gray-500' },

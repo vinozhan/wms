@@ -125,6 +125,13 @@ wasteBinSchema.methods.updateSensorData = function(data) {
     lastUpdated: new Date()
   };
   
+  // Auto-calculate current capacity based on fill level
+  if (data.fillLevel !== undefined && this.capacity.total) {
+    this.capacity.current = Math.round((data.fillLevel / 100) * this.capacity.total * 10) / 10;
+    // Mark capacity as modified so Mongoose saves the nested object change
+    this.markModified('capacity');
+  }
+  
   if (data.fillLevel >= 80) {
     this.status = 'full';
   } else if (this.status === 'full' && data.fillLevel < 50) {

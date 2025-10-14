@@ -303,14 +303,13 @@ router.patch('/:id/sensor',
         humidity
       });
 
+      // Return the complete updated waste bin data
+      const updatedWasteBin = await WasteBin.findById(wasteBin._id)
+        .populate('owner', 'name email userType');
+
       res.json({
         message: 'Sensor data updated successfully',
-        wasteBin: {
-          id: wasteBin._id,
-          fillLevel: wasteBin.sensorData.fillLevel,
-          status: wasteBin.status,
-          needsCollection: wasteBin.needsCollection
-        }
+        wasteBin: updatedWasteBin
       });
 
     } catch (error) {

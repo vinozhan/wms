@@ -99,9 +99,23 @@ const Collections = () => {
     ? allCollections 
     : allCollections.filter(collection => collection.status === filter);
 
-  const openScanForm = (collection) => {
-    setSelectedCollection(collection);
-    setShowScanForm(true);
+  const openScanForm = async (collection) => {
+    try {
+      // Fetch fresh bin data to get updated capacity
+      const freshBinResponse = await wasteBinAPI.getWasteBin(collection.wasteBin._id);
+      const updatedCollection = {
+        ...collection,
+        wasteBin: freshBinResponse.data.wasteBin
+      };
+      
+      setSelectedCollection(updatedCollection);
+      setShowScanForm(true);
+    } catch (error) {
+      console.error('Failed to fetch fresh bin data:', error);
+      // Fallback to using existing collection data
+      setSelectedCollection(collection);
+      setShowScanForm(true);
+    }
   };
 
   const completeCollection = async (data) => {

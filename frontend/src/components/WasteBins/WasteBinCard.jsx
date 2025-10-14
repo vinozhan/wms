@@ -15,6 +15,7 @@ const WasteBinCard = ({
   onScheduleCollection,
   onViewDetails,
   hasPendingRequest = false,
+  collectionStatus = null,
   userType
 }) => {
   const getBinTypeIcon = (binType) => {
@@ -35,6 +36,56 @@ const WasteBinCard = ({
   const formatDate = (date) => {
     if (!date) return 'Never';
     return new Date(date).toLocaleDateString();
+  };
+
+  const getScheduleButtonConfig = () => {
+    if (collectionStatus === 'scheduled') {
+      return {
+        text: 'Collection Scheduled',
+        className: 'bg-green-500 text-white cursor-not-allowed',
+        disabled: true,
+        icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
+      };
+    } else if (collectionStatus === 'in_progress') {
+      return {
+        text: 'Collection In Progress',
+        className: 'bg-yellow-500 text-white cursor-not-allowed',
+        disabled: true,
+        icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
+      };
+    } else if (hasPendingRequest) {
+      return {
+        text: userType === 'collector' ? 'Already Scheduled' : 'Request Pending',
+        className: 'bg-gray-300 text-gray-500 cursor-not-allowed',
+        disabled: true,
+        icon: <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
+      };
+    } else {
+      // Default state - can schedule
+      if (userType === 'resident' || userType === 'business') {
+        return {
+          text: 'Request Collection',
+          className: 'bg-blue-600 text-white hover:bg-blue-700',
+          disabled: false,
+          icon: <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
+        };
+      } else if (userType === 'collector') {
+        return {
+          text: 'Schedule Collection',
+          className: 'bg-orange-600 text-white hover:bg-orange-700',
+          disabled: false,
+          icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
+        };
+      } else {
+        // Admin
+        return {
+          text: 'Manage Collection',
+          className: 'bg-green-600 text-white hover:bg-green-700',
+          disabled: false,
+          icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
+        };
+      }
+    }
   };
 
   return (
@@ -119,38 +170,27 @@ const WasteBinCard = ({
 
         {/* Actions */}
         <div className="flex space-x-2">
-          {(userType === 'resident' || userType === 'business') ? (
-            // Residents and Business users - Request Collection
-            <button
-              onClick={() => onRequestCollection(bin)}
-              disabled={hasPendingRequest}
-              className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                hasPendingRequest
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
-              {hasPendingRequest ? 'Request Pending' : 'Request Collection'}
-            </button>
-          ) : (
-            // Collectors and Admins - Schedule Collection
-            <button
-              onClick={() => onScheduleCollection ? onScheduleCollection(bin) : onRequestCollection(bin)}
-              disabled={hasPendingRequest && userType === 'collector'}
-              className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                hasPendingRequest && userType === 'collector'
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : userType === 'admin'
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-orange-600 text-white hover:bg-orange-700'
-              }`}
-            >
-              <CalendarDaysIcon className="h-4 w-4 mr-1" />
-              {userType === 'admin' ? 'Manage Collection' :
-               hasPendingRequest ? 'Already Scheduled' : 'Schedule Collection'}
-            </button>
-          )}
+          {(() => {
+            const buttonConfig = getScheduleButtonConfig();
+            return (
+              <button
+                onClick={() => {
+                  if (!buttonConfig.disabled) {
+                    if (userType === 'resident' || userType === 'business') {
+                      onRequestCollection(bin);
+                    } else {
+                      onScheduleCollection ? onScheduleCollection(bin) : onRequestCollection(bin);
+                    }
+                  }
+                }}
+                disabled={buttonConfig.disabled}
+                className={`flex-1 px-3 py-2 rounded-md text-sm flex items-center justify-center ${buttonConfig.className}`}
+              >
+                {buttonConfig.icon}
+                {buttonConfig.text}
+              </button>
+            );
+          })()}
           <button 
             onClick={() => onViewDetails(bin)}
             className="flex-1 border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-sm hover:bg-gray-50 flex items-center justify-center"
