@@ -99,6 +99,8 @@ export const binRequestAPI = {
   createBinRequest: (requestData) => api.post('/bin-requests', requestData),
   getBinRequests: (params) => api.get('/bin-requests', { params }),
   getBinRequest: (id) => api.get(`/bin-requests/${id}`),
+  updateBinRequest: (id, data) => api.put(`/bin-requests/${id}`, data),
+  deleteBinRequest: (id) => api.delete(`/bin-requests/${id}`),
   approveBinRequest: (id, data) => api.patch(`/bin-requests/${id}/approve`, data),
   rejectBinRequest: (id, data) => api.patch(`/bin-requests/${id}/reject`, data),
   completeBinRequest: (id, data) => api.patch(`/bin-requests/${id}/complete`, data),
@@ -171,6 +173,15 @@ export const environmentalAPI = {
   getSystemImpact: (period) => api.get('/environmental/system-impact', { params: { period } }),
   getImpactDetails: (impactId) => api.get(`/environmental/impact/${impactId}`),
   getSustainabilityMetrics: (scope, scopeId) => api.get('/environmental/sustainability', { params: { scope, scopeId } }),
+};
+
+// Settings API
+export const settingsAPI = {
+  getSettings: () => api.get('/settings'),
+  updateSettings: (settings) => api.put('/settings', settings),
+  generateBinId: () => api.post('/settings/generate-bin-id'),
+  generateDeviceId: () => api.post('/settings/generate-device-id'),
+  previewNextIds: () => api.get('/settings/preview-ids'),
 };
 
 export default api;

@@ -296,6 +296,119 @@ router.patch('/:id/complete',
   }
 );
 
+// Update bin request (requester only, pending status only)
+router.put('/:id', 
+  authMiddleware,
+  authorize('resident', 'business'),
+  [
+    body('binType').optional().isIn(['general', 'recyclable', 'organic', 'hazardous', 'electronic']),
+    body('preferredLocation').optional().trim().isLength({ min: 1, max: 500 }),
+    body('justification').optional().trim().isLength({ min: 1, max: 1000 }),
+    body('contactPhone').optional().isLength({ min: 1, max: 20 })
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const request = await BinRequest.findById(req.params.id);
+
+      if (!request) {
+        return res.status(404).json({ 
+          error: 'Bin request not found' 
+        });
+      }
+
+      // Check if requester owns the request
+      if (request.requester.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ 
+          error: 'Access denied' 
+        });
+      }
+
+      // Only allow updates to pending requests
+      if (request.status !== 'pending') {
+        return res.status(400).json({ 
+          error: 'Can only update pending requests' 
+        });
+      }
+
+      const updateData = {
+        binType: req.body.binType,
+        preferredLocation: req.body.preferredLocation,
+        justification: req.body.justification,
+        contactPhone: req.body.contactPhone,
+        additionalNotes: req.body.additionalNotes || ''
+      };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
+      const updatedRequest = await BinRequest.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('requester', 'name email phone address');
+
+      res.json({
+        message: 'Bin request updated successfully',
+        request: updatedRequest
+      });
+
+    } catch (error) {
+      console.error('Update bin request error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update bin request' 
+      });
+    }
+  }
+);
+
+// Delete bin request (requester only, pending status only)
+router.delete('/:id', 
+  authMiddleware,
+  authorize('resident', 'business'),
+  async (req, res) => {
+    try {
+      const request = await BinRequest.findById(req.params.id);
+
+      if (!request) {
+        return res.status(404).json({ 
+          error: 'Bin request not found' 
+        });
+      }
+
+      // Check if requester owns the request
+      if (request.requester.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ 
+          error: 'Access denied' 
+        });
+      }
+
+      // Only allow deletion of pending requests
+      if (request.status !== 'pending') {
+        return res.status(400).json({ 
+          error: 'Can only delete pending requests' 
+        });
+      }
+
+      await BinRequest.findByIdAndDelete(req.params.id);
+
+      res.json({
+        message: 'Bin request deleted successfully'
+      });
+
+    } catch (error) {
+      console.error('Delete bin request error:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete bin request' 
+      });
+    }
+  }
+);
+
 // Get bin request statistics
 router.get('/stats/overview', 
   authMiddleware,

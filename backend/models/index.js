@@ -5,6 +5,7 @@ const Payment = require('./Payment');
 const Analytics = require('./Analytics');
 const Route = require('./Route');
 const BinRequest = require('./BinRequest');
+const Settings = require('./Settings');
 
 module.exports = {
   User,
@@ -13,5 +14,6 @@ module.exports = {
   Payment,
   Analytics,
   Route,
-  BinRequest
+  BinRequest,
+  Settings
 };

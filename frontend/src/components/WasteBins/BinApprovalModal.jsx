@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common';
-import { MapPinIcon, CogIcon, TagIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, CogIcon, TagIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { settingsAPI } from '../../utils/api';
+import toast from 'react-hot-toast';
 
 const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
   const [formData, setFormData] = useState({
@@ -28,6 +30,85 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
     latitude: '',
     longitude: ''
   });
+  
+  const [loadingIds, setLoadingIds] = useState(false);
+  const [previewIds, setPreviewIds] = useState({
+    binId: '',
+    deviceId: ''
+  });
+
+  // Auto-fill IDs when modal opens
+  useEffect(() => {
+    if (isOpen && request) {
+      loadPreviewIds();
+    }
+  }, [isOpen, request]);
+
+  // Update form data when request changes
+  useEffect(() => {
+    if (request) {
+      setFormData(prev => ({
+        ...prev,
+        binType: request?.binType || 'general',
+        deviceType: request?.deviceType || 'smart_sensor',
+        capacity: {
+          total: request?.capacity?.total || 60,
+          unit: request?.capacity?.unit || 'liters'
+        },
+        location: {
+          ...prev.location,
+          address: request?.location?.address || request?.preferredLocation || ''
+        }
+      }));
+    }
+  }, [request]);
+
+  const loadPreviewIds = async () => {
+    try {
+      setLoadingIds(true);
+      const response = await settingsAPI.previewNextIds();
+      const { binId, deviceId } = response.data.nextIds;
+      
+      setPreviewIds({ binId, deviceId });
+      setFormData(prev => ({
+        ...prev,
+        binId: binId,
+        deviceId: deviceId
+      }));
+    } catch (error) {
+      console.error('Failed to load preview IDs:', error);
+      toast.error('Failed to load auto-generated IDs');
+    } finally {
+      setLoadingIds(false);
+    }
+  };
+
+  const generateNewIds = async () => {
+    try {
+      setLoadingIds(true);
+      
+      // Generate new bin ID
+      const binResponse = await settingsAPI.generateBinId();
+      const deviceResponse = await settingsAPI.generateDeviceId();
+      
+      const newBinId = binResponse.data.binId;
+      const newDeviceId = deviceResponse.data.deviceId;
+      
+      setPreviewIds({ binId: newBinId, deviceId: newDeviceId });
+      setFormData(prev => ({
+        ...prev,
+        binId: newBinId,
+        deviceId: newDeviceId
+      }));
+      
+      toast.success('New IDs generated successfully');
+    } catch (error) {
+      console.error('Failed to generate new IDs:', error);
+      toast.error('Failed to generate new IDs');
+    } finally {
+      setLoadingIds(false);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,6 +164,25 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Auto-generated IDs Header */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-green-900">Auto-Generated IDs</h4>
+            <button
+              type="button"
+              onClick={generateNewIds}
+              disabled={loadingIds}
+              className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              <ArrowPathIcon className={`h-4 w-4 mr-1 ${loadingIds ? 'animate-spin' : ''}`} />
+              {loadingIds ? 'Generating...' : 'Generate New'}
+            </button>
+          </div>
+          <p className="text-sm text-green-700">
+            IDs are automatically generated based on your system settings. Use "Generate New" to get fresh IDs.
+          </p>
+        </div>
+
         {/* Bin Identification */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -94,10 +194,12 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
               type="text"
               value={formData.binId}
               onChange={(e) => setFormData(prev => ({ ...prev, binId: e.target.value.toUpperCase() }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500 bg-gray-50"
               placeholder="BIN-2024-001"
               required
+              readOnly={loadingIds}
             />
+            <p className="mt-1 text-xs text-gray-500">Auto-generated from settings</p>
           </div>
 
           <div>
@@ -109,10 +211,12 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
               type="text"
               value={formData.deviceId}
               onChange={(e) => setFormData(prev => ({ ...prev, deviceId: e.target.value.toUpperCase() }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500 bg-gray-50"
               placeholder="DEV-SNS-001"
               required
+              readOnly={loadingIds}
             />
+            <p className="mt-1 text-xs text-gray-500">Auto-generated from settings</p>
           </div>
         </div>
 

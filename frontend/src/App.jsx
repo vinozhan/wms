@@ -17,6 +17,7 @@ import RouteOptimization from './pages/Routes/RouteOptimization';
 import RecyclingCredits from './pages/RecyclingCredits/RecyclingCredits';
 import CollectorFeedback from './pages/Collectors/CollectorFeedback';
 import EnvironmentalDashboard from './pages/Environmental/EnvironmentalDashboard';
+import Settings from './pages/Settings/Settings';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -141,7 +142,7 @@ function App() {
               <Route path="collector-feedback" element={<CollectorFeedback />} />
               <Route path="environmental" element={<EnvironmentalDashboard />} />
               <Route path="profile" element={<div>Profile Page</div>} />
-              <Route path="settings" element={<div>Settings Page</div>} />
+              <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
         </div>

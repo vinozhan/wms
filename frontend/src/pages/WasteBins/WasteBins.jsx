@@ -647,9 +647,9 @@ const WasteBins = () => {
                 <BinRequestCard
                   key={request._id}
                   request={request}
-                  onApprove={user?.userType === 'admin' || user?.userType === 'collector' ? handleApproveBinRequest : null}
-                  onReject={user?.userType === 'admin' || user?.userType === 'collector' ? handleRejectBinRequest : null}
-                  onOpenApprovalModal={user?.userType === 'admin' || user?.userType === 'collector' ? handleOpenApprovalModal : null}
+                  onApprove={user?.userType === 'admin' ? handleApproveBinRequest : null}
+                  onReject={user?.userType === 'admin' ? handleRejectBinRequest : null}
+                  onOpenApprovalModal={user?.userType === 'admin' ? handleOpenApprovalModal : null}
                   onEdit={user?.userType === 'resident' || user?.userType === 'business' ? handleEditRequest : null}
                   onDelete={user?.userType === 'resident' || user?.userType === 'business' ? handleDeleteRequest : null}
                 />
