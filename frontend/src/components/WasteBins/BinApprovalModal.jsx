@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common';
-import { MapPinIcon, CogIcon, TagIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, CogIcon, TagIcon } from '@heroicons/react/24/outline';
 import { settingsAPI } from '../../utils/api';
 import toast from 'react-hot-toast';
 
@@ -32,15 +32,11 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
   });
   
   const [loadingIds, setLoadingIds] = useState(false);
-  const [previewIds, setPreviewIds] = useState({
-    binId: '',
-    deviceId: ''
-  });
 
-  // Auto-fill IDs when modal opens
+  // Auto-generate IDs when modal opens
   useEffect(() => {
     if (isOpen && request) {
-      loadPreviewIds();
+      loadAndGenerateIds();
     }
   }, [isOpen, request]);
 
@@ -63,48 +59,26 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
     }
   }, [request]);
 
-  const loadPreviewIds = async () => {
-    try {
-      setLoadingIds(true);
-      const response = await settingsAPI.previewNextIds();
-      const { binId, deviceId } = response.data.nextIds;
-      
-      setPreviewIds({ binId, deviceId });
-      setFormData(prev => ({
-        ...prev,
-        binId: binId,
-        deviceId: deviceId
-      }));
-    } catch (error) {
-      console.error('Failed to load preview IDs:', error);
-      toast.error('Failed to load auto-generated IDs');
-    } finally {
-      setLoadingIds(false);
-    }
-  };
-
-  const generateNewIds = async () => {
+  const loadAndGenerateIds = async () => {
     try {
       setLoadingIds(true);
       
-      // Generate new bin ID
+      // Generate actual IDs that will be used and increment the counters
       const binResponse = await settingsAPI.generateBinId();
       const deviceResponse = await settingsAPI.generateDeviceId();
       
       const newBinId = binResponse.data.binId;
       const newDeviceId = deviceResponse.data.deviceId;
       
-      setPreviewIds({ binId: newBinId, deviceId: newDeviceId });
       setFormData(prev => ({
         ...prev,
         binId: newBinId,
         deviceId: newDeviceId
       }));
       
-      toast.success('New IDs generated successfully');
     } catch (error) {
-      console.error('Failed to generate new IDs:', error);
-      toast.error('Failed to generate new IDs');
+      console.error('Failed to generate IDs:', error);
+      toast.error('Failed to generate auto-incremented IDs');
     } finally {
       setLoadingIds(false);
     }
@@ -164,25 +138,6 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Auto-generated IDs Header */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium text-green-900">Auto-Generated IDs</h4>
-            <button
-              type="button"
-              onClick={generateNewIds}
-              disabled={loadingIds}
-              className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`h-4 w-4 mr-1 ${loadingIds ? 'animate-spin' : ''}`} />
-              {loadingIds ? 'Generating...' : 'Generate New'}
-            </button>
-          </div>
-          <p className="text-sm text-green-700">
-            IDs are automatically generated based on your system settings. Use "Generate New" to get fresh IDs.
-          </p>
-        </div>
-
         {/* Bin Identification */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -192,14 +147,13 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
             </label>
             <input
               type="text"
-              value={formData.binId}
-              onChange={(e) => setFormData(prev => ({ ...prev, binId: e.target.value.toUpperCase() }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500 bg-gray-50"
-              placeholder="BIN-2024-001"
+              value={loadingIds ? 'Generating...' : formData.binId}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-700"
+              placeholder="BIN-2025-001"
               required
-              readOnly={loadingIds}
+              readOnly
             />
-            <p className="mt-1 text-xs text-gray-500">Auto-generated from settings</p>
+            <p className="mt-1 text-xs text-gray-500">Auto-generated and incremented</p>
           </div>
 
           <div>
@@ -209,14 +163,13 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
             </label>
             <input
               type="text"
-              value={formData.deviceId}
-              onChange={(e) => setFormData(prev => ({ ...prev, deviceId: e.target.value.toUpperCase() }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500 bg-gray-50"
+              value={loadingIds ? 'Generating...' : formData.deviceId}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-700"
               placeholder="DEV-SNS-001"
               required
-              readOnly={loadingIds}
+              readOnly
             />
-            <p className="mt-1 text-xs text-gray-500">Auto-generated from settings</p>
+            <p className="mt-1 text-xs text-gray-500">Auto-generated and incremented</p>
           </div>
         </div>
 
@@ -347,9 +300,14 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
           </button>
           <button
             type="submit"
-            className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+            disabled={loadingIds}
+            className={`px-4 py-2 text-sm text-white rounded-md ${
+              loadingIds 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
           >
-            Approve & Create Bin
+            {loadingIds ? 'Generating IDs...' : 'Approve & Create Bin'}
           </button>
         </div>
       </form>

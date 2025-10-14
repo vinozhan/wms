@@ -243,12 +243,12 @@ router.patch('/:id/reject',
   }
 );
 
-// Complete bin request (link to created bin)
+// Complete bin request (mark as installed by collector or link to created bin by admin)
 router.patch('/:id/complete', 
   authMiddleware,
-  authorize('admin'),
+  authorize('admin', 'collector'),
   [
-    body('binId').notEmpty().withMessage('Bin ID is required')
+    body('binId').optional()
   ],
   handleValidationErrors,
   async (req, res) => {
@@ -267,15 +267,19 @@ router.patch('/:id/complete',
         });
       }
 
-      // Verify bin exists
-      const bin = await WasteBin.findById(req.body.binId);
-      if (!bin) {
-        return res.status(404).json({ 
-          error: 'Bin not found' 
-        });
+      // For admin: verify bin exists if binId is provided
+      if (req.user.userType === 'admin' && req.body.binId) {
+        const bin = await WasteBin.findById(req.body.binId);
+        if (!bin) {
+          return res.status(404).json({ 
+            error: 'Bin not found' 
+          });
+        }
+        await request.complete(req.body.binId);
+      } else {
+        // For collector: just mark as completed without linking to bin
+        await request.complete(null);
       }
-
-      await request.complete(req.body.binId);
 
       const updatedRequest = await BinRequest.findById(request._id)
         .populate('requester', 'name email phone')
@@ -283,7 +287,7 @@ router.patch('/:id/complete',
         .populate('approvedBin', 'binId binType');
 
       res.json({
-        message: 'Bin request completed successfully',
+        message: req.user.userType === 'collector' ? 'Bin marked as installed successfully' : 'Bin request completed successfully',
         request: updatedRequest
       });
 

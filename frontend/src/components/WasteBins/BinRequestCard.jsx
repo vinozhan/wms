@@ -17,13 +17,17 @@ const BinRequestCard = ({
   onReject,
   onOpenApprovalModal,
   onEdit,
-  onDelete
+  onDelete,
+  onInstall,
+  userType
 }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'installed': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -88,7 +92,7 @@ const BinRequestCard = ({
         {/* Actions */}
         {request.status === 'pending' && (
           <>
-            {/* Admin/Collector Actions */}
+            {/* Admin Actions */}
             {(onApprove || onReject) && (
               <div className="flex space-x-2">
                 <button
@@ -134,12 +138,27 @@ const BinRequestCard = ({
           </>
         )}
 
+        {/* Collector Install Action for Approved Requests */}
+        {request.status === 'approved' && userType === 'collector' && onInstall && (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onInstall(request)}
+              className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-md text-sm hover:bg-purple-700 flex items-center justify-center"
+            >
+              <CheckCircleIcon className="h-4 w-4 mr-1" />
+              Install Bin
+            </button>
+          </div>
+        )}
+
         {/* Status message for completed requests */}
-        {request.status !== 'pending' && (
+        {request.status !== 'pending' && !(request.status === 'approved' && userType === 'collector') && (
           <div className="text-center py-2">
             <span className="text-sm text-gray-500">
               {request.status === 'approved' && 'Request has been approved - Bin will be installed soon'}
               {request.status === 'rejected' && 'Request has been rejected'}
+              {request.status === 'completed' && 'Bin has been installed successfully'}
+              {request.status === 'installed' && 'Bin has been installed successfully'}
             </span>
           </div>
         )}

@@ -158,9 +158,9 @@ const BinRequests = () => {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Installed</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {requests.filter(r => r.status === 'completed').length}
+                    {requests.filter(r => r.status === 'completed' || r.status === 'installed').length}
                   </dd>
                 </dl>
               </div>

@@ -366,6 +366,19 @@ const WasteBins = () => {
     }
   };
 
+  const handleInstallBin = async (request) => {
+    if (window.confirm('Are you sure you want to mark this bin as installed?')) {
+      try {
+        await binRequestAPI.completeBinRequest(request._id, {});
+        toast.success('Bin marked as installed successfully!');
+        fetchBinRequests();
+      } catch (error) {
+        console.error('Failed to mark bin as installed:', error);
+        toast.error('Failed to mark bin as installed.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -596,9 +609,9 @@ const WasteBins = () => {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Installed</dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {binRequests.filter(r => r.status === 'completed').length}
+                        {binRequests.filter(r => r.status === 'completed' || r.status === 'installed').length}
                       </dd>
                     </dl>
                   </div>
@@ -652,6 +665,8 @@ const WasteBins = () => {
                   onOpenApprovalModal={user?.userType === 'admin' ? handleOpenApprovalModal : null}
                   onEdit={user?.userType === 'resident' || user?.userType === 'business' ? handleEditRequest : null}
                   onDelete={user?.userType === 'resident' || user?.userType === 'business' ? handleDeleteRequest : null}
+                  onInstall={user?.userType === 'collector' ? handleInstallBin : null}
+                  userType={user?.userType}
                 />
               ))}
             </div>
