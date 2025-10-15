@@ -7,14 +7,10 @@ const sriLankaLocations = {
         'Colombo 6', 'Colombo 7', 'Colombo 8', 'Colombo 9', 'Colombo 10',
         'Colombo 11', 'Colombo 12', 'Colombo 13', 'Colombo 14', 'Colombo 15',
         'Dehiwala', 'Mount Lavinia', 'Moratuwa', 'Kotte', 'Maharagama',
-        'Nugegoda', 'Homagama', 'Padukka', 'Hanwella', 'Avissawella',
-        'Seethawaka', 'Kaduwela', 'Biyagama', 'Kelaniya', 'Wattala',
-        'Hendala', 'Ja Ela', 'Ekala', 'Gampaha', 'Kiribathgoda',
-        'Ragama', 'Dompe', 'Minuwangoda', 'Katunayake', 'Negombo',
-        'Kochchikade', 'Marawila', 'Chilaw', 'Puttalam', 'Boralesgamuwa',
-        'Piliyandala', 'Kesbewa', 'Bandaragama', 'Panadura', 'Horana',
-        'Ingiriya', 'Bulathsinhala', 'Mathugama', 'Agalawatta', 'Beruwala',
-        'Aluthgama', 'Bentota', 'Ambalangoda', 'Elpitiya', 'Hikkaduwa'
+        'Nugegoda','Malabe','Battaramulla', 'Homagama', 'Padukka', 'Hanwella', 'Avissawella',
+        'Seethawaka', 'Kaduwela', 'Biyagama', 'Kelaniya','Kiribathgoda',
+        'Kochchikade', 'Boralesgamuwa', 'Mulleriyawa','Kolonnawa','Wellampitiya',
+        'Piliyandala', 'Kesbewa'
       ]
     }
   },
