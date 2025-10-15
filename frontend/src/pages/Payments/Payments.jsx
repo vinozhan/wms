@@ -476,7 +476,7 @@ const Payments = () => {
                     </button>
                   </div>
                   
-                  {payment.status === 'pending' && (
+                  {payment.status === 'pending' && user?.userType !== 'admin' && (
                     <PayHerePayment
                       payment={payment}
                       onSuccess={(orderId) => handlePaymentSuccess(orderId, payment._id)}

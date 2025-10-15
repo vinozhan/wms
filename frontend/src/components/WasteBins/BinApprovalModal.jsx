@@ -63,28 +63,27 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
     try {
       setLoadingIds(true);
       
-      // Generate actual IDs that will be used and increment the counters
-      const binResponse = await settingsAPI.generateBinId();
-      const deviceResponse = await settingsAPI.generateDeviceId();
+      // Preview next IDs without incrementing counters
+      const previewResponse = await settingsAPI.previewNextIds();
       
-      const newBinId = binResponse.data.binId;
-      const newDeviceId = deviceResponse.data.deviceId;
+      const nextBinId = previewResponse.data.nextIds.binId;
+      const nextDeviceId = previewResponse.data.nextIds.deviceId;
       
       setFormData(prev => ({
         ...prev,
-        binId: newBinId,
-        deviceId: newDeviceId
+        binId: nextBinId,
+        deviceId: nextDeviceId
       }));
       
     } catch (error) {
-      console.error('Failed to generate IDs:', error);
-      toast.error('Failed to generate auto-incremented IDs');
+      console.error('Failed to preview next IDs:', error);
+      toast.error('Failed to preview next IDs');
     } finally {
       setLoadingIds(false);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validate required fields
@@ -93,29 +92,46 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
       return;
     }
 
-    if (coordinates.latitude && coordinates.longitude) {
-      formData.location.coordinates = [
-        parseFloat(coordinates.longitude),
-        parseFloat(coordinates.latitude)
-      ];
-    }
-
-    const binData = {
-      // Required fields for WasteBin creation
-      binId: formData.binId,
-      deviceId: formData.deviceId,
-      deviceType: formData.deviceType,
-      binType: formData.binType,
-      owner: request?.requester?._id || request?.requester,
-      capacity: formData.capacity,
-      location: formData.location,
+    try {
+      setLoadingIds(true);
       
-      // Additional metadata
-      adminNotes: formData.adminNotes
-    };
+      // Generate actual IDs only when approving (increment counters)
+      const binResponse = await settingsAPI.generateBinId();
+      const deviceResponse = await settingsAPI.generateDeviceId();
+      
+      const actualBinId = binResponse.data.binId;
+      const actualDeviceId = deviceResponse.data.deviceId;
 
-    onApprove(request._id, binData);
-    onClose();
+      if (coordinates.latitude && coordinates.longitude) {
+        formData.location.coordinates = [
+          parseFloat(coordinates.longitude),
+          parseFloat(coordinates.latitude)
+        ];
+      }
+
+      const binData = {
+        // Required fields for WasteBin creation - use actual generated IDs
+        binId: actualBinId,
+        deviceId: actualDeviceId,
+        deviceType: formData.deviceType,
+        binType: formData.binType,
+        owner: request?.requester?._id || request?.requester,
+        capacity: formData.capacity,
+        location: formData.location,
+        
+        // Additional metadata
+        adminNotes: formData.adminNotes
+      };
+
+      onApprove(request._id, binData);
+      onClose();
+      
+    } catch (error) {
+      console.error('Failed to generate final IDs:', error);
+      toast.error('Failed to generate final IDs for approval');
+    } finally {
+      setLoadingIds(false);
+    }
   };
 
   if (!request) return null;
@@ -147,13 +163,13 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
             </label>
             <input
               type="text"
-              value={loadingIds ? 'Generating...' : formData.binId}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-700"
+              value={loadingIds ? 'Loading preview...' : formData.binId}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-blue-50 text-blue-700"
               placeholder="BIN-2025-001"
               required
               readOnly
             />
-            <p className="mt-1 text-xs text-gray-500">Auto-generated and incremented</p>
+            <p className="mt-1 text-xs text-blue-600">Preview - Final ID generated on approval</p>
           </div>
 
           <div>
@@ -163,13 +179,13 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
             </label>
             <input
               type="text"
-              value={loadingIds ? 'Generating...' : formData.deviceId}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-gray-700"
+              value={loadingIds ? 'Loading preview...' : formData.deviceId}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-blue-50 text-blue-700"
               placeholder="DEV-SNS-001"
               required
               readOnly
             />
-            <p className="mt-1 text-xs text-gray-500">Auto-generated and incremented</p>
+            <p className="mt-1 text-xs text-blue-600">Preview - Final ID generated on approval</p>
           </div>
         </div>
 
@@ -307,7 +323,7 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
                 : 'bg-green-600 hover:bg-green-700'
             }`}
           >
-            {loadingIds ? 'Generating IDs...' : 'Approve & Create Bin'}
+{loadingIds ? 'Generating Final IDs...' : 'Approve & Create Bin'}
           </button>
         </div>
       </form>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common';
+import { constructAddressString } from '../../utils/addressHelpers';
 
 const RequestBinModal = ({ isOpen, onClose, onSubmit, currentUser, editMode = false, existingRequest = null }) => {
   const [formData, setFormData] = useState({
@@ -13,12 +14,12 @@ const RequestBinModal = ({ isOpen, onClose, onSubmit, currentUser, editMode = fa
     
     // Location information
     location: {
-      address: '',
+      address: constructAddressString(currentUser?.address) || '',
       coordinates: [0, 0] // Will be set by admin during approval
     },
     
     // Request specific fields
-    preferredLocation: '',
+    preferredLocation: constructAddressString(currentUser?.address) || '',
     justification: '',
     contactPhone: currentUser?.phone || '',
     additionalNotes: ''
@@ -53,10 +54,10 @@ const RequestBinModal = ({ isOpen, onClose, onSubmit, currentUser, editMode = fa
           unit: 'liters'
         },
         location: {
-          address: '',
+          address: constructAddressString(currentUser?.address) || '',
           coordinates: [0, 0]
         },
-        preferredLocation: '',
+        preferredLocation: constructAddressString(currentUser?.address) || '',
         justification: '',
         contactPhone: currentUser?.phone || '',
         additionalNotes: ''
