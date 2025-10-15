@@ -14,6 +14,9 @@ const analyticsRoutes = require('./routes/analytics');
 const binRequestRoutes = require('./routes/binRequests');
 const billingRoutes = require('./routes/billing');
 const settingsRoutes = require('./routes/settings');
+const truckRoutes = require('./routes/trucks');
+const locationRoutes = require('./routes/locations');
+const routeRoutes = require('./routes/routes');
 
 const app = express();
 
@@ -48,6 +51,9 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bin-requests', binRequestRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/trucks', truckRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/routes', routeRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 

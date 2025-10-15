@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const routeSchema = new mongoose.Schema({
   routeId: {
     type: String,
-    required: [true, 'Route ID is required'],
     unique: true
   },
   name: {
@@ -14,6 +13,19 @@ const routeSchema = new mongoose.Schema({
   district: {
     type: String,
     required: [true, 'District is required']
+  },
+  cities: {
+    startCity: {
+      type: String,
+      required: [true, 'Start city is required']
+    },
+    endCity: {
+      type: String,
+      required: [true, 'End city is required']
+    },
+    intermediateCities: [{
+      type: String
+    }]
   },
   assignedCollector: {
     type: mongoose.Schema.Types.ObjectId,

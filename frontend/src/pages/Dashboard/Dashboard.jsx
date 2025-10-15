@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { wasteBinAPI, collectionAPI, userAPI, analyticsAPI } from '../../utils/api';
+import { wasteBinAPI, collectionAPI, userAPI, analyticsAPI, routeAPI } from '../../utils/api';
 import { 
   TrashIcon, 
   TruckIcon, 
@@ -10,9 +10,11 @@ import {
   BellIcon,
   MapPinIcon,
   DocumentArrowDownIcon,
-  PlusIcon
+  PlusIcon,
+  ClockIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { AlertTriangle, Recycle, TrendingUp, Calendar } from 'lucide-react';
+import { AlertTriangle, Recycle, TrendingUp, Calendar, Route as RouteIcon, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Quick Action Button Component
@@ -238,6 +240,8 @@ const Dashboard = () => {
   const [recentActivity, setRecentActivity] = useState([]);
   const [showSpecialCollectionModal, setShowSpecialCollectionModal] = useState(false);
   const [showAdminScheduleModal, setShowAdminScheduleModal] = useState(false);
+  const [collectorRoutes, setCollectorRoutes] = useState([]);
+  const [todaysCollections, setTodaysCollections] = useState([]);
   const [generatingReport, setGeneratingReport] = useState(false);
 
   useEffect(() => {
@@ -256,6 +260,12 @@ const Dashboard = () => {
           collectionAPI.getCollectionStats(),
           userAPI.getUserStats()
         );
+      } else if (user.userType === 'collector') {
+        promises.push(
+          routeAPI.getCollectorRoutes(user._id),
+          collectionAPI.getCollections({ collector: user._id, limit: 10 }),
+          wasteBinAPI.getWasteBins({ limit: 50 })
+        );
       } else {
         promises.push(
           wasteBinAPI.getWasteBins({ owner: user._id }),
@@ -272,6 +282,25 @@ const Dashboard = () => {
           users: results[2].data,
           loading: false
         });
+      } else if (user.userType === 'collector') {
+        const routes = results[0].data.routes || [];
+        const collections = results[1].data.collections || [];
+        const allBins = results[2].data.wasteBins || [];
+        
+        setCollectorRoutes(routes);
+        setTodaysCollections(collections.filter(c => {
+          const collectionDate = new Date(c.scheduledDate);
+          const today = new Date();
+          return collectionDate.toDateString() === today.toDateString();
+        }));
+        
+        setStats({
+          wasteBins: { overview: { total: allBins.length } },
+          collections: { overview: { total: collections.length } },
+          routes: { total: routes.length, active: routes.filter(r => r.status === 'active').length },
+          loading: false
+        });
+        setRecentActivity(collections.slice(0, 5));
       } else {
         setStats({
           wasteBins: { overview: { total: results[0].data.wasteBins.length } },
@@ -691,7 +720,302 @@ const Dashboard = () => {
     </div>
   );
 
-  return user.userType === 'admin' ? renderAdminDashboard() : renderUserDashboard();
+  const renderCollectorDashboard = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
+          <p className="text-gray-600">Here's your collection dashboard</p>
+        </div>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => navigate('/routes')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center space-x-2"
+          >
+            <RouteIcon className="h-4 w-4" />
+            <span>View Routes</span>
+          </button>
+          <button 
+            onClick={() => navigate('/collections')}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+          >
+            <TruckIcon className="h-4 w-4" />
+            <span>Collections</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <RouteIcon className="h-6 w-6 text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Assigned Routes
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.routes?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calendar className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Today's Collections
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {todaysCollections.length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TruckIcon className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total Collections
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.collections?.overview?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircleIcon className="h-6 w-6 text-purple-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Active Routes
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.routes?.active || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Routes and Collections Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Assigned Routes */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">My Routes</h3>
+              <button 
+                onClick={() => navigate('/routes')}
+                className="text-blue-600 hover:text-blue-500 text-sm"
+              >
+                View All
+              </button>
+            </div>
+          </div>
+          <div className="p-6">
+            {collectorRoutes.length === 0 ? (
+              <div className="text-center py-8">
+                <RouteIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No routes assigned</h3>
+                <p className="mt-1 text-sm text-gray-500">Contact your admin for route assignments.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {collectorRoutes.slice(0, 3).map((route) => (
+                  <div key={route._id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                          <RouteIcon className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900">{route.name}</h4>
+                          <div className="text-xs text-gray-500 flex items-center space-x-1">
+                            <Navigation className="h-3 w-3" />
+                            <span>{route.cities?.startCity} → {route.cities?.endCity}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-900">{route.wasteBins?.length || 0} stops</div>
+                        <div className="text-xs text-gray-500">{route.schedule?.frequency}</div>
+                      </div>
+                    </div>
+                    
+                    {route.schedule && (
+                      <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="h-3 w-3" />
+                          <span>{route.schedule.startTime} - {route.schedule.endTime}</span>
+                        </div>
+                        <div>
+                          <span className="capitalize">{route.schedule.daysOfWeek?.join(', ')}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Today's Collections */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Today's Collections</h3>
+              <button 
+                onClick={() => navigate('/collections')}
+                className="text-blue-600 hover:text-blue-500 text-sm"
+              >
+                View All
+              </button>
+            </div>
+          </div>
+          <div className="p-6">
+            {todaysCollections.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No collections today</h3>
+                <p className="mt-1 text-sm text-gray-500">Enjoy your day off or check upcoming schedules.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todaysCollections.slice(0, 5).map((collection) => (
+                  <div key={collection._id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                          <TrashIcon className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {collection.wasteBin?.binId || 'Collection'}
+                          </h4>
+                          <div className="text-xs text-gray-500">
+                            {collection.wasteType} • {collection.status}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-900">
+                          {new Date(collection.scheduledDate).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500">{collection.priority}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <QuickActionButton
+              icon={<TruckIcon className="h-5 w-5 text-green-600 mr-3" />}
+              title="Start Collection"
+              description="Begin today's collection route"
+              onClick={() => navigate('/collections')}
+            />
+            <QuickActionButton
+              icon={<MapPinIcon className="h-5 w-5 text-blue-600 mr-3" />}
+              title="View Routes"
+              description="Check assigned routes and schedules"
+              onClick={() => navigate('/routes')}
+            />
+            <QuickActionButton
+              icon={<DocumentArrowDownIcon className="h-5 w-5 text-purple-600 mr-3" />}
+              title="Collection Report"
+              description="Submit collection completion report"
+              onClick={() => navigate('/collections')}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      {recentActivity.length > 0 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Recent Collections</h3>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center space-x-4">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <TrashIcon className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900">
+                      Collected {activity.wasteType} from {activity.wasteBin?.binId}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(activity.completedAt || activity.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {activity.status}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (user.userType === 'admin') {
+    return renderAdminDashboard();
+  } else if (user.userType === 'collector') {
+    return renderCollectorDashboard();
+  } else {
+    return renderUserDashboard();
+  }
 };
 
 export default Dashboard;

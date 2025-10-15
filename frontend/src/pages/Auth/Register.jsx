@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { locationAPI } from '../../utils/api';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { RecycleIcon } from 'lucide-react';
 
@@ -17,6 +18,7 @@ const Register = () => {
     address: {
       street: '',
       city: '',
+      district: 'colombo',
       postalCode: '',
       coordinates: {
         latitude: 6.9271,
@@ -24,6 +26,48 @@ const Register = () => {
       }
     }
   });
+  const [districts, setDistricts] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+
+  useEffect(() => {
+    fetchDistricts();
+    fetchCitiesByDistrict('colombo');
+  }, []);
+
+  useEffect(() => {
+    if (formData.address.district) {
+      fetchCitiesByDistrict(formData.address.district);
+    }
+  }, [formData.address.district]);
+
+  const fetchDistricts = async () => {
+    try {
+      const response = await locationAPI.getDistricts();
+      setDistricts(response.data.districts);
+    } catch (error) {
+      console.error('Failed to fetch districts:', error);
+    }
+  };
+
+  const fetchCitiesByDistrict = async (district) => {
+    try {
+      const response = await locationAPI.getCitiesByDistrict(district);
+      setAvailableCities(response.data.cities);
+      // Reset city when district changes
+      if (formData.address.city && !response.data.cities.find(c => c.value === formData.address.city)) {
+        setFormData(prev => ({
+          ...prev,
+          address: {
+            ...prev.address,
+            city: ''
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch cities:', error);
+      setAvailableCities([]);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -205,36 +249,61 @@ const Register = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="address.city" className="block text-sm font-medium text-gray-700">
-                    City
+                  <label htmlFor="address.district" className="block text-sm font-medium text-gray-700">
+                    District
                   </label>
-                  <input
-                    id="address.city"
-                    name="address.city"
-                    type="text"
-                    required
-                    value={formData.address.city}
+                  <select
+                    id="address.district"
+                    name="address.district"
+                    value={formData.address.district}
                     onChange={handleChange}
-                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                    placeholder="City"
-                  />
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    required
+                  >
+                    {districts.map(district => (
+                      <option key={district.value} value={district.value}>
+                        {district.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label htmlFor="address.postalCode" className="block text-sm font-medium text-gray-700">
-                    Postal Code
+                  <label htmlFor="address.city" className="block text-sm font-medium text-gray-700">
+                    City
                   </label>
-                  <input
-                    id="address.postalCode"
-                    name="address.postalCode"
-                    type="text"
-                    required
-                    value={formData.address.postalCode}
+                  <select
+                    id="address.city"
+                    name="address.city"
+                    value={formData.address.city}
                     onChange={handleChange}
-                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                    placeholder="Postal Code"
-                  />
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Select a city</option>
+                    {availableCities.map(city => (
+                      <option key={city.value} value={city.value}>
+                        {city.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="address.postalCode" className="block text-sm font-medium text-gray-700">
+                  Postal Code
+                </label>
+                <input
+                  id="address.postalCode"
+                  name="address.postalCode"
+                  type="text"
+                  required
+                  value={formData.address.postalCode}
+                  onChange={handleChange}
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  placeholder="Postal Code"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

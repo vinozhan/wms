@@ -11,6 +11,72 @@ const {
 
 const router = express.Router();
 
+// POST /api/users - Create new user (admin only)
+router.post('/', 
+  authMiddleware,
+  authorize('admin'),
+  userValidation.register,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const {
+        name,
+        email,
+        password,
+        phone,
+        address,
+        userType,
+        collectorInfo
+      } = req.body;
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+
+      // Create new user
+      const userData = {
+        name,
+        email,
+        password,
+        phone,
+        address,
+        userType: userType || 'resident'
+      };
+
+      // Add collector-specific data if user is a collector
+      if (userType === 'collector' && collectorInfo) {
+        userData.collectorInfo = collectorInfo;
+      }
+
+      const user = new User(userData);
+      await user.save();
+
+      // Remove password from response
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        user: userResponse
+      });
+
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create user',
+        error: error.message
+      });
+    }
+  }
+);
+
 router.get('/', 
   authMiddleware, 
   authorize('admin', 'collector'),

@@ -47,6 +47,7 @@ export const authAPI = {
 export const userAPI = {
   getUsers: (params) => api.get('/users', { params }),
   getUser: (id) => api.get(`/users/${id}`),
+  createUser: (userData) => api.post('/users', userData),
   updateUser: (id, userData) => api.put(`/users/${id}`, userData),
   updateUserStatus: (id, status) => api.patch(`/users/${id}/status`, { accountStatus: status }),
   deleteUser: (id) => api.delete(`/users/${id}`),
@@ -182,6 +183,36 @@ export const settingsAPI = {
   generateBinId: () => api.post('/settings/generate-bin-id'),
   generateDeviceId: () => api.post('/settings/generate-device-id'),
   previewNextIds: () => api.get('/settings/preview-ids'),
+};
+
+// Truck API
+export const truckAPI = {
+  getTrucks: (params) => api.get('/trucks', { params }),
+  getTruck: (id) => api.get(`/trucks/${id}`),
+  createTruck: (truckData) => api.post('/trucks', truckData),
+  updateTruck: (id, truckData) => api.put(`/trucks/${id}`, truckData),
+  deleteTruck: (id) => api.delete(`/trucks/${id}`),
+  getAvailableTrucks: () => api.get('/trucks/available'),
+  assignTruckToCollector: (truckId, collectorId) => api.post('/trucks/assign', { truckId, collectorId }),
+};
+
+// Location API
+export const locationAPI = {
+  getDistricts: () => api.get('/locations/districts'),
+  getCitiesByDistrict: (district) => api.get(`/locations/districts/${district}/cities`),
+  validateLocation: (district, city) => api.post('/locations/validate', { district, city }),
+};
+
+// Route API
+export const routeAPI = {
+  getRoutes: (params) => api.get('/routes', { params }),
+  getRoute: (id) => api.get(`/routes/${id}`),
+  createRoute: (routeData) => api.post('/routes', routeData),
+  updateRoute: (id, routeData) => api.put(`/routes/${id}`, routeData),
+  deleteRoute: (id) => api.delete(`/routes/${id}`),
+  optimizeRoute: (id, algorithm) => api.post(`/routes/${id}/optimize`, { algorithm }),
+  getCollectorRoutes: (collectorId) => api.get(`/routes/collector/${collectorId}`),
+  getRouteStats: () => api.get('/routes/stats/overview'),
 };
 
 export default api;

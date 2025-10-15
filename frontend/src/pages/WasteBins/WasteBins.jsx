@@ -38,6 +38,7 @@ const WasteBins = () => {
   const [selectedRequestForApproval, setSelectedRequestForApproval] = useState(null);
   const [showEditRequestModal, setShowEditRequestModal] = useState(false);
   const [selectedRequestForEdit, setSelectedRequestForEdit] = useState(null);
+  const [requestStatusFilter, setRequestStatusFilter] = useState('all');
 
   useEffect(() => {
     fetchWasteBins();
@@ -192,6 +193,9 @@ const WasteBins = () => {
     try {
       await binRequestAPI.createBinRequest(requestData);
       toast.success('Bin request submitted successfully! We will contact you within 2-3 business days.');
+      
+      // Refresh bin requests to show the new request immediately
+      fetchBinRequests();
     } catch (error) {
       console.error('Failed to submit bin request:', error);
       toast.error('Failed to submit bin request. Please try again.');
@@ -377,6 +381,18 @@ const WasteBins = () => {
         toast.error('Failed to mark bin as installed.');
       }
     }
+  };
+
+  const getFilteredBinRequests = () => {
+    if (requestStatusFilter === 'all') {
+      return binRequests;
+    }
+    return binRequests.filter(request => {
+      if (requestStatusFilter === 'installed') {
+        return request.status === 'completed' || request.status === 'installed';
+      }
+      return request.status === requestStatusFilter;
+    });
   };
 
   if (loading) {
@@ -638,25 +654,61 @@ const WasteBins = () => {
             </div>
           </div>
 
-          {binRequests.length === 0 ? (
+          {/* Bin Request Status Filter Tabs */}
+          {(user?.userType === 'admin' || user?.userType === 'collector') && (
+            <div className="border-b border-gray-200 mb-6">
+              <nav className="-mb-px flex space-x-8">
+                {[
+                  { key: 'all', label: 'All', count: binRequests.length },
+                  { key: 'pending', label: 'Pending', count: binRequests.filter(r => r.status === 'pending').length },
+                  { key: 'approved', label: 'Approved', count: binRequests.filter(r => r.status === 'approved').length },
+                  { key: 'installed', label: 'Installed', count: binRequests.filter(r => r.status === 'completed' || r.status === 'installed').length },
+                  { key: 'rejected', label: 'Rejected', count: binRequests.filter(r => r.status === 'rejected').length }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setRequestStatusFilter(tab.key)}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      requestStatusFilter === tab.key
+                        ? 'border-green-500 text-green-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs ${
+                      requestStatusFilter === tab.key
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+          )}
+
+          {getFilteredBinRequests().length === 0 ? (
             <div className="text-center py-12">
               <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
-                {user?.userType === 'admin' || user?.userType === 'collector'
-                  ? 'No bin requests'
-                  : 'No requests yet'
+                {requestStatusFilter === 'all' 
+                  ? (user?.userType === 'admin' || user?.userType === 'collector' ? 'No bin requests' : 'No requests yet')
+                  : `No ${requestStatusFilter} requests`
                 }
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                {user?.userType === 'admin' || user?.userType === 'collector'
-                  ? 'No pending bin requests at the moment.'
-                  : 'Submit your first bin request to get started.'
+                {requestStatusFilter === 'all' 
+                  ? (user?.userType === 'admin' || user?.userType === 'collector' 
+                    ? 'No pending bin requests at the moment.' 
+                    : 'Submit your first bin request to get started.')
+                  : `No requests with ${requestStatusFilter} status found.`
                 }
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {binRequests.map((request) => (
+              {getFilteredBinRequests().map((request) => (
                 <BinRequestCard
                   key={request._id}
                   request={request}

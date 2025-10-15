@@ -6,6 +6,7 @@ const Analytics = require('./Analytics');
 const Route = require('./Route');
 const BinRequest = require('./BinRequest');
 const Settings = require('./Settings');
+const Truck = require('./Truck');
 
 module.exports = {
   User,
@@ -15,5 +16,6 @@ module.exports = {
   Analytics,
   Route,
   BinRequest,
-  Settings
+  Settings,
+  Truck
 };

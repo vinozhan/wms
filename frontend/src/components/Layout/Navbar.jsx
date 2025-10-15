@@ -27,6 +27,7 @@ const Navbar = () => {
       roles: ['collector', 'admin'],
       subItems: [
         { name: 'Collection Management', href: '/collections', roles: ['collector', 'admin'] },
+        { name: 'Routes', href: '/routes', roles: ['collector', 'admin'] },
         { name: 'Route Optimization', href: '/route-optimization', roles: ['collector', 'admin'] },
         { name: 'Collector Feedback', href: '/collector-feedback', roles: ['collector', 'admin'] }
       ]

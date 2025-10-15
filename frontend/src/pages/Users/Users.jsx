@@ -15,6 +15,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { Users as UsersIcon, Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import AddUserModal from '../../components/modals/AddUserModal';
 import toast from 'react-hot-toast';
 
 const Users = () => {
@@ -25,6 +26,7 @@ const Users = () => {
   const [filter, setFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -142,10 +144,7 @@ const Users = () => {
         </div>
         
         <button
-          onClick={() => {
-            setSelectedUser(null);
-            setShowUserModal(true);
-          }}
+          onClick={() => setShowAddUserModal(true)}
           className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
         >
           <UserPlusIcon className="h-5 w-5" />
@@ -433,6 +432,16 @@ const Users = () => {
           }}
         />
       )}
+
+      {/* Add User Modal */}
+      <AddUserModal
+        isOpen={showAddUserModal}
+        onClose={() => setShowAddUserModal(false)}
+        onUserAdded={(newUser) => {
+          fetchUsers(pagination.currentPage);
+          setShowAddUserModal(false);
+        }}
+      />
     </div>
   );
 };
