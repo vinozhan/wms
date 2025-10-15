@@ -16,6 +16,8 @@ router.post('/',
   authorize('resident', 'business'),
   [
     body('binType').optional().isIn(['general', 'recyclable', 'organic', 'hazardous', 'electronic']),
+    body('capacity.total').optional().isNumeric().isInt({ min: 1 }),
+    body('capacity.unit').optional().isIn(['liters', 'cubic_meters']),
     body('preferredLocation').optional().trim().isLength({ min: 1, max: 500 }),
     body('justification').optional().trim().isLength({ min: 1, max: 1000 }),
     body('contactPhone').optional().isLength({ min: 1, max: 20 })
@@ -25,6 +27,7 @@ router.post('/',
     try {
       const {
         binType,
+        capacity,
         preferredLocation,
         justification,
         contactPhone,
@@ -34,6 +37,7 @@ router.post('/',
       const binRequest = new BinRequest({
         requester: req.user._id,
         binType,
+        capacity,
         preferredLocation,
         justification,
         contactPhone,
@@ -74,6 +78,28 @@ router.get('/',
       if (req.user.userType !== 'admin' && req.user.userType !== 'collector') {
         filter.requester = req.user._id;
       }
+      
+      // Collectors see filtered requests based on their assigned cities and specializations
+      if (req.user.userType === 'collector') {
+        const { User } = require('../models');
+        const collector = await User.findById(req.user._id);
+        
+        if (collector && collector.collectorInfo) {
+          const assignedCities = collector.collectorInfo.assignedCities || [];
+          const specializations = collector.collectorInfo.experience?.specializations || [];
+          
+          // Filter by bin type (must match collector's specializations)
+          if (specializations.length > 0) {
+            filter.binType = { $in: specializations };
+          } else {
+            // If no specializations set, only show general bin requests
+            filter.binType = 'general';
+          }
+          
+          // We'll filter by requester's city after populating
+          filter._collectorCities = assignedCities; // Temporary field for later filtering
+        }
+      }
 
       // Filter by status
       if (req.query.status) {
@@ -85,18 +111,30 @@ router.get('/',
         filter.priority = req.query.priority;
       }
 
-      const requests = await BinRequest.find(filter)
+      // Remove temporary filter field before querying
+      const collectorCities = filter._collectorCities;
+      delete filter._collectorCities;
+
+      let requests = await BinRequest.find(filter)
         .populate('requester', 'name email phone address userType')
         .populate('reviewedBy', 'name')
         .populate('approvedBin', 'binId binType')
-        .sort('-requestDate')
-        .skip(skip)
-        .limit(limit);
+        .sort('-requestDate');
 
-      const total = await BinRequest.countDocuments(filter);
+      // Apply city filtering after population for collectors
+      if (req.user.userType === 'collector' && collectorCities && collectorCities.length > 0) {
+        requests = requests.filter(request => {
+          const requesterCity = request.requester?.address?.city;
+          return requesterCity && collectorCities.includes(requesterCity);
+        });
+      }
+
+      // Apply pagination after filtering
+      const total = requests.length;
+      const paginatedRequests = requests.slice(skip, skip + limit);
 
       res.json({
-        requests,
+        requests: paginatedRequests,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -155,7 +193,12 @@ router.patch('/:id/approve',
   authorize('admin'),
   [
     body('reviewNotes').optional().trim().isLength({ max: 500 }),
-    body('priority').optional().isIn(['low', 'medium', 'high', 'urgent'])
+    body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
+    body('binId').optional().trim(),
+    body('deviceId').optional().trim(),
+    body('deviceType').optional().trim(),
+    body('capacity.total').optional().isNumeric(),
+    body('capacity.unit').optional().trim()
   ],
   handleValidationErrors,
   async (req, res) => {
@@ -178,6 +221,17 @@ router.patch('/:id/approve',
       if (req.body.priority) {
         request.priority = req.body.priority;
       }
+
+      // Store approval data for collector installation
+      const approvalData = {};
+      if (req.body.binId) approvalData.binId = req.body.binId;
+      if (req.body.deviceId) approvalData.deviceId = req.body.deviceId;
+      if (req.body.deviceType) approvalData.deviceType = req.body.deviceType;
+      if (req.body.capacity) approvalData.capacity = req.body.capacity;
+      if (req.body.location) approvalData.location = req.body.location;
+
+      // Store approval data in the request
+      request.approvalData = approvalData;
 
       await request.approve(req.user._id, req.body.reviewNotes);
 

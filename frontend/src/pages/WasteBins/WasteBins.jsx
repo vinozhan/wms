@@ -18,6 +18,7 @@ import {
   BinApprovalModal,
   ScheduleCollectionModal 
 } from '../../components/WasteBins';
+import InstallBinModal from '../../components/modals/InstallBinModal';
 
 const WasteBins = () => {
   const { user } = useAuth();
@@ -38,6 +39,9 @@ const WasteBins = () => {
   const [selectedRequestForApproval, setSelectedRequestForApproval] = useState(null);
   const [showEditRequestModal, setShowEditRequestModal] = useState(false);
   const [selectedRequestForEdit, setSelectedRequestForEdit] = useState(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [selectedRequestForInstall, setSelectedRequestForInstall] = useState(null);
+  const [installLoading, setInstallLoading] = useState(false);
   const [requestStatusFilter, setRequestStatusFilter] = useState('all');
 
   useEffect(() => {
@@ -309,16 +313,12 @@ const WasteBins = () => {
 
   const handleApproveBinRequest = async (requestId, binData) => {
     try {
-      // First approve the request
-      await binRequestAPI.approveBinRequest(requestId, {});
+      // Only approve the request - bin creation happens when collector installs
+      await binRequestAPI.approveBinRequest(requestId, binData);
       
-      // Then create the actual waste bin
-      await wasteBinAPI.createWasteBin(binData);
+      toast.success('Bin request approved successfully! Collector can now install the bin.');
       
-      toast.success('Bin request approved and waste bin created successfully!');
-      
-      // Refresh both bins and requests
-      fetchWasteBins();
+      // Refresh bin requests
       fetchBinRequests();
       
       // Close modal
@@ -326,7 +326,7 @@ const WasteBins = () => {
       setSelectedRequestForApproval(null);
     } catch (error) {
       console.error('Failed to approve bin request:', error);
-      toast.error('Failed to approve bin request and create bin.');
+      toast.error('Failed to approve bin request.');
     }
   };
 
@@ -372,16 +372,57 @@ const WasteBins = () => {
     }
   };
 
-  const handleInstallBin = async (request) => {
-    if (window.confirm('Are you sure you want to mark this bin as installed?')) {
-      try {
-        await binRequestAPI.completeBinRequest(request._id, {});
-        toast.success('Bin marked as installed successfully!');
-        fetchBinRequests();
-      } catch (error) {
-        console.error('Failed to mark bin as installed:', error);
-        toast.error('Failed to mark bin as installed.');
-      }
+  const handleInstallBin = (request) => {
+    setSelectedRequestForInstall(request);
+    setShowInstallModal(true);
+  };
+
+  const handleConfirmInstall = async (request) => {
+    setInstallLoading(true);
+    try {
+      // Create the waste bin from the approved request data
+      const coordinates = request.approvalData?.location?.coordinates || {
+        latitude: request.requester?.address?.coordinates?.latitude || 6.9271,
+        longitude: request.requester?.address?.coordinates?.longitude || 79.8612
+      };
+
+      const binData = {
+        binId: request.approvalData?.binId || `BIN-${Date.now()}`, // Use approved binId
+        deviceId: request.approvalData?.deviceId || `DEV-${Date.now()}`, // Use approved deviceId
+        deviceType: request.approvalData?.deviceType || request.deviceType || 'smart_sensor',
+        binType: request.binType,
+        owner: request.requester._id || request.requester,
+        capacity: request.approvalData?.capacity || request.capacity || { total: 60, unit: 'liters' },
+        location: {
+          address: request.approvalData?.location?.address || request.preferredLocation,
+          coordinates: [coordinates.longitude, coordinates.latitude] // Convert to array format [lng, lat]
+        },
+        status: 'active',
+        installationDate: new Date().toISOString()
+      };
+
+      console.log('Bin data being sent:', binData);
+
+      // First create the waste bin
+      await wasteBinAPI.createWasteBin(binData);
+      
+      // Then mark the request as completed
+      await binRequestAPI.completeBinRequest(request._id, {});
+      
+      toast.success('Bin installed successfully! Waste bin created and added to resident/business account.');
+      
+      // Refresh both bins and requests
+      fetchWasteBins();
+      fetchBinRequests();
+      
+      // Close modal
+      setShowInstallModal(false);
+      setSelectedRequestForInstall(null);
+    } catch (error) {
+      console.error('Failed to install bin:', error);
+      toast.error('Failed to install bin. Please try again.');
+    } finally {
+      setInstallLoading(false);
     }
   };
 
@@ -792,6 +833,18 @@ const WasteBins = () => {
         currentUser={user}
         editMode={true}
         existingRequest={selectedRequestForEdit}
+      />
+
+      {/* Install Bin Modal */}
+      <InstallBinModal
+        isOpen={showInstallModal}
+        onClose={() => {
+          setShowInstallModal(false);
+          setSelectedRequestForInstall(null);
+        }}
+        onConfirm={handleConfirmInstall}
+        request={selectedRequestForInstall}
+        loading={installLoading}
       />
     </div>
   );

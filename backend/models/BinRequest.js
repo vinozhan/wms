@@ -15,6 +15,18 @@ const binRequestSchema = new mongoose.Schema({
     enum: ['general', 'recyclable', 'organic', 'hazardous', 'electronic'],
     required: [true, 'Bin type is required']
   },
+  capacity: {
+    total: {
+      type: Number,
+      required: [true, 'Capacity is required'],
+      min: [1, 'Capacity must be at least 1']
+    },
+    unit: {
+      type: String,
+      enum: ['liters', 'cubic_meters'],
+      default: 'liters'
+    }
+  },
   preferredLocation: {
     type: String,
     required: [true, 'Preferred location is required'],
@@ -61,6 +73,22 @@ const binRequestSchema = new mongoose.Schema({
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'medium'
+  },
+  approvalData: {
+    binId: String,
+    deviceId: String,
+    deviceType: String,
+    capacity: {
+      total: Number,
+      unit: String
+    },
+    location: {
+      address: String,
+      coordinates: {
+        latitude: Number,
+        longitude: Number
+      }
+    }
   }
 }, {
   timestamps: true

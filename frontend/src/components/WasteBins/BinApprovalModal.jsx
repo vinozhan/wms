@@ -323,7 +323,7 @@ const BinApprovalModal = ({ isOpen, onClose, onApprove, request }) => {
                 : 'bg-green-600 hover:bg-green-700'
             }`}
           >
-{loadingIds ? 'Generating Final IDs...' : 'Approve & Create Bin'}
+{loadingIds ? 'Generating Final IDs...' : 'Approve'}
           </button>
         </div>
       </form>
