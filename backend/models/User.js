@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema({
   address: {
     street: { type: String, required: true },
     city: { type: String, required: true },
+    district: { type: String, required: true },
     postalCode: { type: String, required: true },
     coordinates: {
       latitude: { type: Number, required: true },
@@ -49,6 +50,43 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'WasteBin'
   }],
+  // Collector-specific fields
+  collectorInfo: {
+    assignedTruck: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Truck',
+      default: null
+    },
+    assignedRoutes: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Route'
+    }],
+    assignedCities: [{
+      type: String
+    }],
+    workSchedule: {
+      daysOfWeek: [{
+        type: String,
+        enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+      }],
+      startTime: String,
+      endTime: String
+    },
+    experience: {
+      startDate: Date,
+      yearsOfExperience: Number,
+      specializations: [{
+        type: String,
+        enum: ['general', 'recyclable', 'organic', 'hazardous', 'electronic']
+      }]
+    },
+    performance: {
+      completionRate: { type: Number, default: 0 },
+      onTimeRate: { type: Number, default: 0 },
+      customerRating: { type: Number, default: 0 },
+      totalCollections: { type: Number, default: 0 }
+    }
+  },
   paymentInfo: {
     preferredMethod: {
       type: String,

@@ -192,6 +192,9 @@ const WasteBins = () => {
     try {
       await binRequestAPI.createBinRequest(requestData);
       toast.success('Bin request submitted successfully! We will contact you within 2-3 business days.');
+      
+      // Refresh bin requests to show the new request immediately
+      fetchBinRequests();
     } catch (error) {
       console.error('Failed to submit bin request:', error);
       toast.error('Failed to submit bin request. Please try again.');
