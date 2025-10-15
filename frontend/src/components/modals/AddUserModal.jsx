@@ -4,7 +4,7 @@ import { userAPI, truckAPI, locationAPI } from '../../utils/api';
 import AddTruckModal from './AddTruckModal';
 import toast from 'react-hot-toast';
 
-const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
+const AddUserModal = ({ isOpen, onClose, onUserAdded, editMode = false, existingUser = null }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,12 +41,94 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
   const [availableCities, setAvailableCities] = useState([]);
   const [districts, setDistricts] = useState([]);
 
+  // Load initial data when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchDistricts();
       fetchAvailableTrucks();
     }
   }, [isOpen]);
+
+  // Populate form data when in edit mode and data is available
+  useEffect(() => {
+    if (isOpen && editMode && existingUser) {
+      // Check if assigned truck is in available trucks
+      const assignedTruckId = existingUser.collectorInfo?.assignedTruck?._id || existingUser.collectorInfo?.assignedTruck;
+      const assignedTruckObj = existingUser.collectorInfo?.assignedTruck;
+      
+      // If assigned truck is not in available trucks and we have the truck object, add it
+      if (assignedTruckId && assignedTruckObj && typeof assignedTruckObj === 'object') {
+        const truckInList = availableTrucks.find(t => t._id === assignedTruckId);
+        if (!truckInList) {
+          setAvailableTrucks(prev => [...prev, assignedTruckObj]);
+        }
+      }
+      
+      // Populate form data with existing user data when in edit mode
+      setFormData({
+        name: existingUser.name || '',
+        email: existingUser.email || '',
+        password: '',
+        confirmPassword: '',
+        phone: existingUser.phone || '',
+        userType: existingUser.userType || 'resident',
+        address: {
+          street: existingUser.address?.street || '',
+          city: existingUser.address?.city || '',
+          district: existingUser.address?.district || 'colombo',
+          postalCode: existingUser.address?.postalCode || '',
+          coordinates: {
+            latitude: existingUser.address?.coordinates?.latitude || 6.9271,
+            longitude: existingUser.address?.coordinates?.longitude || 79.8612
+          }
+        },
+        collectorInfo: {
+          assignedTruck: existingUser.collectorInfo?.assignedTruck?._id || existingUser.collectorInfo?.assignedTruck || '',
+          assignedCities: existingUser.collectorInfo?.assignedCities || [],
+          workSchedule: {
+            daysOfWeek: existingUser.collectorInfo?.workSchedule?.daysOfWeek || [],
+            startTime: existingUser.collectorInfo?.workSchedule?.startTime || '08:00',
+            endTime: existingUser.collectorInfo?.workSchedule?.endTime || '17:00'
+          },
+          specializations: existingUser.collectorInfo?.experience?.specializations || existingUser.collectorInfo?.specializations || []
+        }
+      });
+    }
+  }, [isOpen, editMode, existingUser, availableTrucks]);
+
+  // Reset form for new user creation
+  useEffect(() => {
+    if (isOpen && !editMode) {
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        userType: 'resident',
+        address: {
+          street: '',
+          city: '',
+          district: 'colombo',
+          postalCode: '',
+          coordinates: {
+            latitude: 6.9271,
+            longitude: 79.8612
+          }
+        },
+        collectorInfo: {
+          assignedTruck: '',
+          assignedCities: [],
+          workSchedule: {
+            daysOfWeek: [],
+            startTime: '08:00',
+            endTime: '17:00'
+          },
+          specializations: []
+        }
+      });
+    }
+  }, [isOpen, editMode]);
 
   useEffect(() => {
     if (formData.address.district) {
@@ -157,13 +239,18 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
     e.preventDefault();
     
     // Validation
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password && formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    if (!formData.name || !formData.email || !formData.password || !formData.phone) {
+    if (!formData.name || !formData.email || !formData.phone) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!editMode && !formData.password) {
+      toast.error('Password is required for new users');
       return;
     }
 
@@ -173,7 +260,6 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
       const userData = {
         name: formData.name,
         email: formData.email,
-        password: formData.password,
         phone: formData.phone,
         userType: formData.userType,
         address: {
@@ -185,15 +271,32 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
         }
       };
 
-      // Add collector-specific data if user is a collector
-      if (formData.userType === 'collector') {
-        userData.collectorInfo = formData.collectorInfo;
+      // Add password only for new users or when password is provided in edit mode
+      if (!editMode || formData.password) {
+        userData.password = formData.password;
       }
 
-      const response = await userAPI.createUser(userData);
+      // Add collector-specific data if user is a collector
+      if (formData.userType === 'collector') {
+        userData.collectorInfo = {
+          assignedTruck: formData.collectorInfo.assignedTruck,
+          assignedCities: formData.collectorInfo.assignedCities,
+          workSchedule: formData.collectorInfo.workSchedule,
+          experience: {
+            specializations: formData.collectorInfo.specializations
+          }
+        };
+      }
+
+      let response;
+      if (editMode) {
+        response = await userAPI.updateUser(existingUser._id, userData);
+      } else {
+        response = await userAPI.createUser(userData);
+      }
       
-      // If collector has assigned truck, link them
-      if (formData.userType === 'collector' && formData.collectorInfo.assignedTruck) {
+      // If creating a new collector with assigned truck, link them
+      if (!editMode && formData.userType === 'collector' && formData.collectorInfo.assignedTruck) {
         try {
           await truckAPI.assignTruckToCollector(
             formData.collectorInfo.assignedTruck, 
@@ -205,7 +308,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
         }
       }
       
-      toast.success(`${formData.userType} added successfully!`);
+      toast.success(`${formData.userType} ${editMode ? 'updated' : 'added'} successfully!`);
       
       if (onUserAdded) {
         onUserAdded(response.data.user);
@@ -273,7 +376,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
               <UserIcon className="h-6 w-6 mr-2 text-blue-600" />
-              Add New User
+              {editMode ? 'Edit User' : 'Add New User'}
             </h3>
             <button
               onClick={onClose}
@@ -324,8 +427,9 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  required={!editMode}
                   minLength={6}
+                  placeholder={editMode ? 'Leave blank to keep current password' : ''}
                 />
               </div>
 
@@ -339,7 +443,8 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  required={!editMode && formData.password}
+                  placeholder={editMode ? 'Leave blank to keep current password' : ''}
                 />
               </div>
 
@@ -627,7 +732,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
                     : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
-                {loading ? 'Adding...' : 'Add User'}
+                {loading ? (editMode ? 'Updating...' : 'Adding...') : (editMode ? 'Update User' : 'Add User')}
               </button>
             </div>
           </form>

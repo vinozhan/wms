@@ -142,6 +142,7 @@ router.get('/:id',
     try {
       const user = await User.findById(req.params.id)
         .populate('wasteBins')
+        .populate('collectorInfo.assignedTruck')
         .select('-password');
 
       if (!user) {

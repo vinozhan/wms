@@ -27,6 +27,7 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -430,24 +431,38 @@ const Users = () => {
             setShowUserModal(false);
             setSelectedUser(null);
           }}
+          onEdit={(user) => {
+            setSelectedUser(user);
+            setEditMode(true);
+            setShowUserModal(false);
+            setShowAddUserModal(true);
+          }}
         />
       )}
 
-      {/* Add User Modal */}
+      {/* Add/Edit User Modal */}
       <AddUserModal
         isOpen={showAddUserModal}
-        onClose={() => setShowAddUserModal(false)}
+        onClose={() => {
+          setShowAddUserModal(false);
+          setEditMode(false);
+          setSelectedUser(null);
+        }}
         onUserAdded={(newUser) => {
           fetchUsers(pagination.currentPage);
           setShowAddUserModal(false);
+          setEditMode(false);
+          setSelectedUser(null);
         }}
+        editMode={editMode}
+        existingUser={selectedUser}
       />
     </div>
   );
 };
 
 // User Details Modal Component
-const UserDetailsModal = ({ user, onClose, onUpdate }) => {
+const UserDetailsModal = ({ user, onClose, onUpdate, onEdit }) => {
   if (!user) return null;
 
   return (
@@ -455,12 +470,21 @@ const UserDetailsModal = ({ user, onClose, onUpdate }) => {
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">User Details</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XCircleIcon className="h-6 w-6" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => onEdit(user)}
+              className="text-blue-600 hover:text-blue-500"
+              title="Edit User"
+            >
+              <PencilIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+          </div>
         </div>
         
         <div className="space-y-4">
