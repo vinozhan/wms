@@ -133,6 +133,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUserProfile = (updatedUser) => {
+    // Update user in local storage and state
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    dispatch({ type: 'SET_USER', payload: updatedUser });
+  };
+
   const value = {
     ...state,
     login,
@@ -140,6 +146,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     changePassword,
+    updateUserProfile,
     checkAuthStatus,
   };
 

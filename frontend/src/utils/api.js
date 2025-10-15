@@ -55,6 +55,7 @@ export const userAPI = {
   getUserCollections: (id, params) => api.get(`/users/${id}/collections`, { params }),
   getUserPayments: (id, params) => api.get(`/users/${id}/payments`, { params }),
   getUserStats: () => api.get('/users/stats/overview'),
+  updateProfile: (profileData) => api.put('/users/profile', profileData),
 };
 
 export const wasteBinAPI = {

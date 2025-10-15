@@ -50,11 +50,12 @@ const WasteBins = () => {
     }
   }, [user]);
 
-  // Refresh collection status every 30 seconds
+  // Refresh collection status every 10 seconds for more responsive updates
   useEffect(() => {
     const interval = setInterval(() => {
       fetchScheduledCollections();
-    }, 30000);
+      fetchPendingRequests();
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -88,6 +89,7 @@ const WasteBins = () => {
   const fetchPendingRequests = async () => {
     try {
       // Fetch collections with 'requested' status for current user
+      // These are collections that residents/businesses have requested but not yet scheduled by collectors
       const response = await collectionAPI.getCollections({ status: 'requested' });
       setPendingRequests(response.data.collections);
     } catch (error) {

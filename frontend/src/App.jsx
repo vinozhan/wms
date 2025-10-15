@@ -19,6 +19,7 @@ import RecyclingCredits from './pages/RecyclingCredits/RecyclingCredits';
 import CollectorFeedback from './pages/Collectors/CollectorFeedback';
 import EnvironmentalDashboard from './pages/Environmental/EnvironmentalDashboard';
 import Settings from './pages/Settings/Settings';
+import { UserProfile, CollectorProfile } from './pages/Profile';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -46,6 +47,16 @@ const PublicRoute = ({ children }) => {
   }
   
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+};
+
+const ProfileWrapper = () => {
+  const { user } = useAuth();
+  
+  if (user?.userType === 'collector') {
+    return <CollectorProfile />;
+  } else {
+    return <UserProfile />;
+  }
 };
 
 const HomePage = () => (
@@ -143,7 +154,7 @@ function App() {
               <Route path="recycling-credits" element={<RecyclingCredits />} />
               <Route path="collector-feedback" element={<CollectorFeedback />} />
               <Route path="environmental" element={<EnvironmentalDashboard />} />
-              <Route path="profile" element={<div>Profile Page</div>} />
+              <Route path="profile" element={<ProfileWrapper />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

@@ -39,6 +39,7 @@ const WasteBinCard = ({
   };
 
   const getScheduleButtonConfig = () => {
+    // Active collection statuses that should disable the button
     if (collectionStatus === 'scheduled') {
       return {
         text: 'Scheduled',
@@ -54,6 +55,7 @@ const WasteBinCard = ({
         icon: <CalendarDaysIcon className="h-4 w-4 mr-1" />
       };
     } else if (hasPendingRequest) {
+      // Only show pending if there's actually a requested status collection
       return {
         text: userType === 'collector' ? 'Already Scheduled' : 'Request Pending',
         className: 'bg-gray-300 text-gray-500 cursor-not-allowed',
@@ -61,7 +63,8 @@ const WasteBinCard = ({
         icon: <ClipboardDocumentListIcon className="h-4 w-4 mr-1" />
       };
     } else {
-      // Default state - can schedule
+      // Default state - can schedule (includes when collection is completed)
+      // This covers: no active collection, no pending request, or completed collection
       if (userType === 'resident' || userType === 'business') {
         return {
           text: 'Request Collection',
