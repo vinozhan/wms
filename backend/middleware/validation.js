@@ -356,6 +356,69 @@ const queryValidation = {
   ]
 };
 
+const companyValidation = {
+  create: [
+    body('name')
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Name must be between 1 and 100 characters'),
+    body('registrationNumber')
+      .isLength({ min: 1 })
+      .withMessage('Registration number is required'),
+    body('contact.email').isEmail().withMessage('Valid email is required'),
+    body('contact.phone').isLength({ min: 1 }).withMessage('Phone is required'),
+    handleValidationErrors
+  ],
+  
+  update: [
+    param('id').isMongoId().withMessage('Invalid company ID'),
+    body('name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('contact.email').optional().isEmail(),
+    handleValidationErrors
+  ]
+};
+
+const issueValidation = {
+  create: [
+    body('title')
+      .trim()
+      .isLength({ min: 1, max: 200 })
+      .withMessage('Title must be between 1 and 200 characters'),
+    body('description')
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage('Description is required'),
+    body('type')
+      .isIn(['missed_pickup', 'damaged_bin', 'complaint', 'compliance_violation', 'other'])
+      .withMessage('Invalid issue type'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'critical'])
+      .withMessage('Invalid priority level'),
+    handleValidationErrors
+  ]
+};
+
+const programValidation = {
+  create: [
+    body('name')
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Name must be between 1 and 100 characters'),
+    body('description')
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage('Description is required'),
+    body('type')
+      .isIn(['recycling', 'composting', 'hazardous_waste', 'bulk_collection', 'special'])
+      .withMessage('Invalid program type'),
+    body('budget.allocated')
+      .isFloat({ min: 0 })
+      .withMessage('Allocated budget must be a positive number'),
+    handleValidationErrors
+  ]
+};
+
 module.exports = {
   handleValidationErrors,
   userValidation,
@@ -365,5 +428,8 @@ module.exports = {
   routeValidation,
   analyticsValidation,
   paramValidation,
-  queryValidation
+  queryValidation,
+  companyValidation,
+  issueValidation,
+  programValidation
 };

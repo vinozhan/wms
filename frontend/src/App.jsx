@@ -20,6 +20,12 @@ import CollectorFeedback from './pages/Collectors/CollectorFeedback';
 import EnvironmentalDashboard from './pages/Environmental/EnvironmentalDashboard';
 import Settings from './pages/Settings/Settings';
 import { UserProfile, CollectorProfile } from './pages/Profile';
+import { DashboardProvider } from './context/DashboardContext';
+import CompanyDashboard from './pages/Company/CompanyDashboard';
+import Companies from './pages/Company/Companies';
+import Issues from './pages/Company/Issues';
+import Programs from './pages/Company/Programs';
+import Reports from './pages/Company/Reports';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -57,6 +63,15 @@ const ProfileWrapper = () => {
   } else {
     return <UserProfile />;
   }
+};
+
+// Wrapper component for Municipal Council features
+const MunicipalCouncilWrapper = ({ children }) => {
+  return (
+    <DashboardProvider>
+      {children}
+    </DashboardProvider>
+  );
 };
 
 const HomePage = () => (
@@ -156,6 +171,26 @@ function App() {
               <Route path="environmental" element={<EnvironmentalDashboard />} />
               <Route path="profile" element={<ProfileWrapper />} />
               <Route path="settings" element={<Settings />} />
+              {/* <Route path="/company-dashboard" element={<CompanyDashboard />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/issues" element={<Issues />} />
+              <Route path="/programs" element={<Programs />} />
+              <Route path="/reports" element={<Reports />} /> */}
+            </Route>
+
+            {/* Municipal Council Specific Routes - Wrapped with DashboardProvider */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <MunicipalCouncilWrapper>
+                  <Layout />
+                </MunicipalCouncilWrapper>
+              </ProtectedRoute>
+            }>
+              <Route path="company-dashboard" element={<CompanyDashboard />} />
+              <Route path="companies" element={<Companies />} />
+              <Route path="issues" element={<Issues />} />
+              <Route path="programs" element={<Programs />} />
+              <Route path="reports" element={<Reports />} />
             </Route>
           </Routes>
         </div>

@@ -52,6 +52,18 @@ const Navbar = () => {
       ]
     },
     { name: 'Users', href: '/users', roles: ['admin'] },
+    {
+      name: 'Company',
+      href: '/company',
+      roles: ['admin'],
+      subItems: [
+        { name: 'CompanyDashboard', href: '/company-dashboard', roles: ['admin', 'manager'] },
+        { name: 'Companies', href: '/companies', roles: ['admin', 'manager'] },
+        { name: 'Issues', href: '/issues', roles: ['admin', 'manager', 'operator'] },
+        { name: 'Programs', href: '/programs', roles: ['admin', 'manager'] },
+        { name: 'Reports', href: '/reports', roles: ['admin', 'manager'] },
+      ]
+    },
   ];
 
   const handleLogout = async () => {

@@ -17,6 +17,10 @@ const settingsRoutes = require('./routes/settings');
 const truckRoutes = require('./routes/trucks');
 const locationRoutes = require('./routes/locations');
 const routeRoutes = require('./routes/routes');
+const companyRoutes = require('./routes/companies');
+const issueRoutes = require('./routes/issues');
+const programRoutes = require('./routes/programs');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
@@ -54,6 +58,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/trucks', truckRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/routes', routeRoutes);
+app.use('/api/companies', companyRoutes);
+app.use('/api/issues', issueRoutes);
+app.use('/api/programs', programRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
