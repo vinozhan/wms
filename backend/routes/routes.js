@@ -512,4 +512,51 @@ router.patch('/:routeId/bins/:binId/complete', authMiddleware, async (req, res) 
 });
 
 
+router.patch('/:routeId/bins/:binId/revert', authMiddleware, authorize('collector', 'admin'), async (req, res) => {
+  try {
+    const { routeId, binId } = req.params;
+
+    const route = await Route.findById(routeId).populate('wasteBins.bin');
+
+    if (!route) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+
+    // Find the bin to revert using a case-insensitive match
+    const targetBin = route.wasteBins.find(
+      b => b.bin?.binId?.trim().toUpperCase() === binId.trim().toUpperCase()
+    );
+
+    if (!targetBin) {
+      return res.status(404).json({ error: 'Bin not found in this route' });
+    }
+
+    if (targetBin.status !== 'completed') {
+      return res.status(400).json({ error: 'Only completed bins can be reverted.' });
+    }
+
+    // Revert the status and clear the completion timestamp
+    targetBin.status = 'pending';
+    targetBin.completedAt = null;
+
+    // Decrement the completion counter
+    if (route.lastCompleted && route.lastCompleted.collectionsCompleted > 0) {
+      route.lastCompleted.collectionsCompleted -= 1;
+    }
+
+    await route.save();
+
+    res.json({
+      success: true,
+      message: `Bin ${binId} status reverted to pending`,
+      route // Send back the updated route object
+    });
+
+  } catch (error) {
+    console.error('Error reverting bin status:', error);
+    res.status(500).json({ error: 'Server error while reverting bin status' });
+  }
+});
+
+
 module.exports = router;
