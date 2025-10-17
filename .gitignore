@@ -22,7 +22,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 # IDE and OS files
-.vscode/
 .DS_Store
 Thumbs.db
 
@@ -36,3 +35,4 @@ Thumbs.db
 backend/Dockerfile
 frontend/Dockerfile
 
+config.bat
