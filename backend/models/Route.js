@@ -61,7 +61,13 @@ const routeSchema = new mongoose.Schema({
       type: String,
       enum: ['low', 'medium', 'high', 'urgent'],
       default: 'medium'
-    }
+    },
+    status: {
+    type: String,
+    enum: ['pending', 'completed'],
+    default: 'pending'
+  },
+  completedAt: { type: Date }
   }],
   schedule: {
     frequency: {

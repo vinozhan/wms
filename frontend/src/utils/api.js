@@ -213,6 +213,52 @@ export const routeAPI = {
   optimizeRoute: (id, algorithm) => api.post(`/routes/${id}/optimize`, { algorithm }),
   getCollectorRoutes: (collectorId) => api.get(`/routes/collector/${collectorId}`),
   getRouteStats: () => api.get('/routes/stats/overview'),
+  markBinAsCollected: (routeId, binId) => api.patch(`/routes/${routeId}/bins/${binId}/complete`),
+  revertBinStatus: (routeId, binId) => api.patch(`/routes/${routeId}/bins/${binId}/revert`),
+};
+
+export const companyService = {
+  getAll: (params) => api.get('/companies', { params }),
+  getById: (id) => api.get(`/companies/${id}`),
+  create: (data) => api.post('/companies', data),
+  update: (id, data) => api.put(`/companies/${id}`, data),
+  delete: (id) => api.delete(`/companies/${id}`),
+  getRankings: () => api.get('/companies/rankings'),
+  enforceCompliance: (id, action) => api.patch(`/companies/${id}/compliance`, { action }),
+  updatePerformance: (id, metrics) => api.patch(`/companies/${id}/performance`, metrics),
+};
+
+export const issueService = {
+  getAll: (params) => api.get('/issues', { params }),
+  getById: (id) => api.get(`/issues/${id}`),
+  create: (data) => api.post('/issues', data),
+  update: (id, data) => api.put(`/issues/${id}`, data),
+  resolve: (id, data) => api.patch(`/issues/${id}/resolve`, data),
+  escalate: (id, data) => api.patch(`/issues/${id}/escalate`, data),
+  getStats: () => api.get('/issues/stats'),
+};
+
+export const dashboardService = {
+  getOverview: () => api.get('/dashboard/overview'),
+  getAnalytics: () => api.get('/dashboard/analytics'),
+};
+
+// Add to the existing api.js file
+
+// Add to the existing api.js file
+
+export const programService = {
+  getAll: (params) => api.get('/programs', { params }),
+  getById: (id) => api.get(`/programs/${id}`),
+  create: (data) => api.post('/programs', data),
+  update: (id, data) => api.put(`/programs/${id}`, data),
+  approve: (id, data) => api.patch(`/programs/${id}/approve`, data),
+  delete: (id) => api.delete(`/programs/${id}`),
+};
+
+export const reportService = {
+  generate: (type, params) => api.post('/reports/generate', { type, ...params }),
+  export: (type, format, params) => api.post('/reports/export', { type, format, ...params }),
 };
 
 export default api;
