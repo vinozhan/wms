@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { routeAPI } from '../../utils/api';
 import { 
@@ -13,7 +13,9 @@ import {
   TrashIcon,
   TruckIcon,
   ClockIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  QrCodeIcon,
+  ArrowUturnLeftIcon // Added for the revert button
 } from '@heroicons/react/24/outline';
 import { Route as RouteIcon, Navigation, MapPin } from 'lucide-react';
 import AddRouteModal from '../../components/modals/AddRouteModal';
@@ -143,82 +145,7 @@ const Routes = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <RouteIcon className="h-6 w-6 text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Routes</dt>
-                  <dd className="text-lg font-medium text-gray-900">{pagination.totalRoutes}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-6 w-6 text-green-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Active Routes</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {routes.filter(r => r.status === 'active').length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CpuChipIcon className="h-6 w-6 text-purple-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Optimized Routes</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {routes.filter(r => r.optimization?.isOptimized).length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TruckIcon className="h-6 w-6 text-orange-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Average Stops</dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {routes.length > 0 ? Math.round(routes.reduce((sum, r) => sum + (r.wasteBins?.length || 0), 0) / routes.length) : 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="p-6">
+      <div className="bg-white shadow rounded-lg p-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -232,7 +159,6 @@ const Routes = () => {
                 />
               </div>
             </div>
-            
             <div className="flex items-center space-x-2">
               <FunnelIcon className="h-5 w-5 text-gray-400" />
               <select
@@ -248,162 +174,44 @@ const Routes = () => {
               </select>
             </div>
           </div>
-        </div>
       </div>
 
-      {/* Routes Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Route
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Collector
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stops
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Schedule
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collector</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stops</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {routes.map((route) => (
                 <tr key={route._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <RouteIcon className="h-5 w-5 text-blue-600" />
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{route.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {route.cities?.startCity} → {route.cities?.endCity}
-                        </div>
-                      </div>
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{route.name}</div>
+                    <div className="text-sm text-gray-500">{route.district}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{route.assignedCollector?.name}</div>
-                    <div className="text-sm text-gray-500">{route.assignedCollector?.email}</div>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{route.assignedCollector?.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(route.status)}`}>
-                      {getStatusIcon(route.status)}
                       <span className="ml-1 capitalize">{route.status}</span>
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {route.wasteBins?.length || 0} bins
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <ClockIcon className="h-4 w-4 mr-1" />
-                      {route.schedule?.startTime} - {route.schedule?.endTime}
-                    </div>
-                    <div className="text-xs text-gray-400 capitalize">
-                      {route.schedule?.frequency}
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{route.wasteBins?.length || 0} bins</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => viewRouteDetails(route._id)}
-                        className="text-blue-600 hover:text-blue-500"
-                        title="View Details"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                      
-                      {user?.userType === 'admin' && (
-                        <>
-                          <button
-                            onClick={() => handleOptimizeRoute(route._id)}
-                            className="text-purple-600 hover:text-purple-500"
-                            title="Optimize Route"
-                          >
-                            <CpuChipIcon className="h-4 w-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => handleDeleteRoute(route._id)}
-                            className="text-red-600 hover:text-red-500"
-                            title="Delete Route"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    <button onClick={() => viewRouteDetails(route._id)} className="text-blue-600 hover:text-blue-500" title="View Details"><EyeIcon className="h-5 w-5" /></button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => fetchRoutes(pagination.currentPage - 1)}
-                disabled={!pagination.hasPrev}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => fetchRoutes(pagination.currentPage + 1)}
-                disabled={!pagination.hasNext}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing page <span className="font-medium">{pagination.currentPage}</span> of{' '}
-                  <span className="font-medium">{pagination.totalPages}</span>
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <button
-                    onClick={() => fetchRoutes(pagination.currentPage - 1)}
-                    disabled={!pagination.hasPrev}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => fetchRoutes(pagination.currentPage + 1)}
-                    disabled={!pagination.hasNext}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Route Details Modal */}
       {showRouteModal && (
         <RouteDetailsModal
           route={selectedRoute}
@@ -412,21 +220,16 @@ const Routes = () => {
             setSelectedRoute(null);
           }}
           onUpdate={() => {
+            viewRouteDetails(selectedRoute._id);
             fetchRoutes(pagination.currentPage);
-            setShowRouteModal(false);
-            setSelectedRoute(null);
           }}
         />
       )}
 
-      {/* Add Route Modal */}
       <AddRouteModal
         isOpen={showAddRouteModal}
         onClose={() => setShowAddRouteModal(false)}
-        onRouteAdded={(newRoute) => {
-          fetchRoutes(pagination.currentPage);
-          setShowAddRouteModal(false);
-        }}
+        onRouteAdded={() => fetchRoutes(pagination.currentPage)}
       />
     </div>
   );
@@ -434,114 +237,145 @@ const Routes = () => {
 
 // Route Details Modal Component
 const RouteDetailsModal = ({ route, onClose, onUpdate }) => {
+  const { user } = useAuth();
+  const [inputBinId, setInputBinId] = useState('');
+
   if (!route) return null;
+
+  const binsSorted = useMemo(() => {
+    if (!route.wasteBins) return [];
+    return [...route.wasteBins].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  }, [route.wasteBins]);
+
+  const handleRecordCollection = async () => {
+    const trimmedBinId = inputBinId.trim();
+    if (!trimmedBinId) {
+      toast.error('Please enter a Bin ID.');
+      return;
+    }
+
+    const targetBinInfo = binsSorted.find(b => b.bin.binId.toLowerCase() === trimmedBinId.toLowerCase());
+
+    if (!targetBinInfo) {
+      toast.error(`Bin ID "${trimmedBinId}" is not part of this route.`);
+      return;
+    }
+
+    if (targetBinInfo.status === 'completed') {
+      toast.error(`Bin "${trimmedBinId}" has already been collected.`);
+      setInputBinId('');
+      return;
+    }
+
+    try {
+      toast.loading('Recording collection...', { id: 'collect-toast' });
+      await routeAPI.markBinAsCollected(route._id, trimmedBinId);
+      toast.success(`Bin "${trimmedBinId}" recorded successfully!`, { id: 'collect-toast' });
+      onUpdate();
+      setInputBinId('');
+    } catch (error) {
+      console.error("Failed to mark bin as collected:", error);
+      toast.error('Failed to record collection.', { id: 'collect-toast' });
+    }
+  };
+
+  // --- NEW: HANDLER FOR REVERTING BIN STATUS ---
+  const handleRevertStatus = async (binId) => {
+    if (!binId) {
+        toast.error('Invalid Bin ID provided.');
+        return;
+    }
+    
+    try {
+        toast.loading('Reverting status...', { id: 'revert-toast' });
+        // Make sure your api.js has this function
+        await routeAPI.revertBinStatus(route._id, binId); 
+        toast.success(`Bin ${binId} status reverted to pending.`, { id: 'revert-toast' });
+        onUpdate();
+    } catch (error) {
+        console.error("Failed to revert bin status:", error);
+        toast.error('Failed to revert status.', { id: 'revert-toast' });
+    }
+  };
+
+  const getBinBadge = (status) => {
+    switch (status) {
+      case 'completed':
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>;
+      case 'pending':
+      default:
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>;
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-medium text-gray-900">Route Details</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XCircleIcon className="h-6 w-6" />
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircleIcon className="h-6 w-6" /></button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-2">Route Information</h4>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RouteIcon className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-900">{route.name}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-900">{route.district}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Navigation className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-900">
-                    {route.cities?.startCity} → {route.cities?.endCity}
-                  </span>
-                </div>
+        {user?.userType === 'collector' && (
+          <div className="mb-6 pt-6 border-t">
+            <h4 className="text-md font-medium text-gray-900 mb-3">Record Bin Collection</h4>
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-grow">
+                <QrCodeIcon className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={inputBinId}
+                  onChange={(e) => setInputBinId(e.target.value)}
+                  placeholder="Enter or Scan Bin ID to record collection"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                />
               </div>
-            </div>
-
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-2">Assignment</h4>
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Collector:</span> {route.assignedCollector?.name}
-                </div>
-                {route.backupCollector && (
-                  <div className="text-sm">
-                    <span className="font-medium">Backup:</span> {route.backupCollector?.name}
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={handleRecordCollection}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+              >
+                <CheckCircleIcon className="h-5 w-5" />
+                <span>Record</span>
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-2">Schedule</h4>
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Frequency:</span> {route.schedule?.frequency}
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">Time:</span> {route.schedule?.startTime} - {route.schedule?.endTime}
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">Days:</span> {route.schedule?.daysOfWeek?.join(', ')}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-2">Statistics</h4>
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Total Stops:</span> {route.wasteBins?.length || 0}
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">Estimated Time:</span> {route.optimization?.estimatedTime || 0} min
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">Status:</span> 
-                  <span className="ml-1 capitalize">{route.status}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {route.wasteBins && route.wasteBins.length > 0 && (
+        {binsSorted?.length > 0 && (
           <div className="mt-6">
-            <h4 className="text-md font-medium text-gray-900 mb-3">Waste Bins ({route.wasteBins.length})</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
-              {route.wasteBins.map((binInfo, index) => (
-                <div key={binInfo.bin._id} className="p-3 border border-gray-200 rounded-md">
-                  <div className="text-sm font-medium">{binInfo.bin.binId}</div>
-                  <div className="text-xs text-gray-500">Order: {binInfo.sequenceOrder}</div>
-                  <div className="text-xs text-gray-500">Priority: {binInfo.priority}</div>
+            <h4 className="text-md font-medium text-gray-900 mb-3">Route Stops ({binsSorted.length})</h4>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {binsSorted.map((binInfo) => (
+                <div key={binInfo.bin._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
+                  <div>
+                    <div className={`text-sm font-medium ${binInfo.status === 'completed' ? 'text-gray-400 line-through' : ''}`}>
+                      {binInfo.sequenceOrder}. {binInfo.bin?.location?.address || 'Address not available'}
+                    </div>
+                    <div className="text-xs text-gray-500">Bin ID: {binInfo.bin.binId}</div>
+                  </div>
+                  
+                  {/* --- UPDATED SECTION WITH REVERT BUTTON --- */}
+                  <div className="ml-4 flex items-center space-x-3">
+                    {getBinBadge(binInfo.status)}
+                    {binInfo.status === 'completed' && user?.userType === 'collector' && (
+                      <button
+                        onClick={() => handleRevertStatus(binInfo.bin.binId)}
+                        className="bg-red-100 text-red-800 px-3 py-1 rounded-md text-xs font-semibold hover:bg-red-200 transition-colors flex items-center space-x-1"
+                        title="Revert to Pending"
+                      >
+                        <ArrowUturnLeftIcon className="h-3 w-3" />
+                        <span>Revert</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Close
-          </button>
+        <div className="flex justify-end space-x-3 mt-8">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Close</button>
         </div>
       </div>
     </div>
