@@ -1,7 +1,22 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
 const app = require('../server');
 const { User, WasteBin } = require('../models');
 const { generateToken } = require('../middleware/auth');
+
+beforeAll(async () => {
+  const url = process.env.MONGO_URI_TEST || 'mongodb://localhost:27017/wms_test';
+  await mongoose.connect(url);
+});
+
+afterEach(async () => {
+  await User.deleteMany({});
+  await WasteBin.deleteMany({});
+});
+
+afterAll(async () => {
+  await mongoose.connection.close();
+});
 
 describe('Waste Bins', () => {
   let adminToken, userToken, adminUser, regularUser;
@@ -22,7 +37,7 @@ describe('Waste Bins', () => {
       }
     });
     await adminUser.save();
-    adminToken = generateToken(adminUser._id);
+    adminToken = generateToken({ id: adminUser._id, userType: adminUser.userType });
 
     regularUser = new User({
       name: 'Regular User',
@@ -39,7 +54,7 @@ describe('Waste Bins', () => {
       }
     });
     await regularUser.save();
-    userToken = generateToken(regularUser._id);
+    userToken = generateToken({ id: regularUser._id, userType: regularUser.userType });
   });
 
   describe('POST /api/waste-bins', () => {

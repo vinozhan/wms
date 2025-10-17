@@ -14,7 +14,7 @@ import {
   ClockIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { AlertTriangle, Recycle, Calendar, Route as RouteIcon, Navigation } from 'lucide-react';
+import { AlertTriangle, Recycle, TrendingUp, Calendar, Route as RouteIcon, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Quick Action Button Component
@@ -261,13 +261,10 @@ const Dashboard = () => {
           userAPI.getUserStats()
         );
       } else if (user.userType === 'collector') {
-        // CHANGED: Fetch all assigned routes and collections for today for the collector
         promises.push(
           routeAPI.getCollectorRoutes(user._id),
-          collectionAPI.getCollections({ 
-            collector: user._id, 
-            date: new Date().toISOString().split('T')[0] // Filter for today
-          })
+          collectionAPI.getCollections({ collector: user._id, limit: 10 }),
+          wasteBinAPI.getWasteBins({ limit: 50 })
         );
       } else {
         promises.push(
@@ -288,17 +285,22 @@ const Dashboard = () => {
       } else if (user.userType === 'collector') {
         const routes = results[0].data.routes || [];
         const collections = results[1].data.collections || [];
+        const allBins = results[2].data.wasteBins || [];
         
         setCollectorRoutes(routes);
-        setTodaysCollections(collections); // Set all collections for today
+        setTodaysCollections(collections.filter(c => {
+          const collectionDate = new Date(c.scheduledDate);
+          const today = new Date();
+          return collectionDate.toDateString() === today.toDateString();
+        }));
         
-        const completedTodayCount = collections.filter(c => c.status === 'completed').length;
-
         setStats({
+          wasteBins: { overview: { total: allBins.length } },
+          collections: { overview: { total: collections.length } },
           routes: { total: routes.length, active: routes.filter(r => r.status === 'active').length },
-          collectionsToday: { total: collections.length, completed: completedTodayCount },
           loading: false
         });
+        setRecentActivity(collections.slice(0, 5));
       } else {
         setStats({
           wasteBins: { overview: { total: results[0].data.wasteBins.length } },
@@ -310,13 +312,13 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      toast.error("Failed to fetch dashboard data.");
       setStats(prev => ({ ...prev, loading: false }));
     }
   };
 
   const handleSpecialCollection = async (formData) => {
     try {
+      // In a real application, you would call an API here
       toast.success(`Special collection for ${formData.collectionType} scheduled for ${formData.preferredDate}`);
     } catch (error) {
       toast.error('Failed to schedule special collection');
@@ -340,34 +342,28 @@ const Dashboard = () => {
 
       await collectionAPI.createCollection(collectionData);
       toast.success('Collection scheduled successfully!');
-      fetchDashboardData();
+      fetchDashboardData(); // Refresh dashboard data
     } catch (error) {
       console.error('Failed to schedule collection:', error);
       toast.error('Failed to schedule collection');
     }
   };
 
-  // NEW: Function to handle marking a stop as collected
-  const handleMarkAsCollected = async (collectionId) => {
-    try {
-      // Assumes an API endpoint exists to update a collection's status
-      await collectionAPI.updateCollection(collectionId, { status: 'completed' });
-      toast.success('Stop marked as collected!');
-      // Refresh the dashboard to show the updated status
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Failed to update collection status:', error);
-      toast.error('Could not update status. Please try again.');
-    }
-  };
-
   const handleGenerateReport = async () => {
     try {
       setGeneratingReport(true);
-      const reportData = { type: 'weekly', includeCharts: true };
+      
+      const reportData = {
+        type: 'weekly',
+        includeCharts: true
+      };
+
       const response = await analyticsAPI.generateReport(reportData);
       
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      // Create download link for the report
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+        type: 'application/json'
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -420,26 +416,170 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <p className="text-sm font-medium text-gray-500 truncate">Total Waste Bins</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">{stats.wasteBins.overview?.total || 0}</p>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TrashIcon className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total Waste Bins
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.wasteBins.overview?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 px-5 py-3">
+            <div className="text-sm">
+              <span className="text-green-600 font-medium">
+                {stats.wasteBins.overview?.active || 0} active
+              </span>
+              <span className="text-gray-500"> • </span>
+              <span className="text-red-600 font-medium">
+                {stats.wasteBins.overview?.needsCollection || 0} need collection
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <p className="text-sm font-medium text-gray-500 truncate">Collections Today</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">{stats.collections.overview?.today || 0}</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TruckIcon className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Collections Today
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.collections.overview?.today || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 px-5 py-3">
+            <div className="text-sm">
+              <span className="text-green-600 font-medium">
+                {stats.collections.overview?.efficiency || 0}% efficiency
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <p className="text-sm font-medium text-gray-500 truncate">Total Users</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">{stats.users?.overview?.total || 0}</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ChartBarIcon className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total Users
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.users?.overview?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 px-5 py-3">
+            <div className="text-sm">
+              <span className="text-green-600 font-medium">
+                {stats.users?.overview?.active || 0} active
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <p className="text-sm font-medium text-red-500 truncate">Alerts</p>
-            <p className="mt-1 text-3xl font-semibold text-red-600">
-                {(stats.wasteBins.overview?.needsCollection || 0) + (stats.collections.overview?.missed || 0)}
-            </p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Alerts
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {(stats.wasteBins.overview?.needsCollection || 0) + (stats.collections.overview?.missed || 0)}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Collections</h3>
+          <div className="space-y-3">
+            {recentActivity.slice(0, 5).map((collection, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded">
+                <div className="flex items-center">
+                  <TruckIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium">Collection #{collection.collectionId}</p>
+                    <p className="text-xs text-gray-500">{collection.status}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  collection.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  collection.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {collection.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">System Alerts</h3>
+          <div className="space-y-3">
+            <div className="flex items-center p-3 border-l-4 border-red-400 bg-red-50">
+              <AlertTriangle className="h-5 w-5 text-red-400 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-red-800">
+                  {stats.wasteBins.overview?.needsCollection || 0} bins need collection
+                </p>
+                <p className="text-xs text-red-600">High priority</p>
+              </div>
+            </div>
+            <div className="flex items-center p-3 border-l-4 border-yellow-400 bg-yellow-50">
+              <BellIcon className="h-5 w-5 text-yellow-400 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">
+                  {stats.collections.overview?.missed || 0} missed collections
+                </p>
+                <p className="text-xs text-yellow-600">Requires attention</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Admin Schedule Collection Modal */}
+      <AdminScheduleCollectionModal
+        isOpen={showAdminScheduleModal}
+        onClose={() => setShowAdminScheduleModal(false)}
+        onSubmit={handleAdminScheduleCollection}
+      />
     </div>
   );
 
@@ -456,6 +596,69 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TrashIcon className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    My Waste Bins
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.wasteBins.overview?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calendar className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Next Collection
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    Tomorrow
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Recycle className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Recycling Rate
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    75%
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Collections</h3>
@@ -482,6 +685,7 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
@@ -506,6 +710,8 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Special Collection Modal */}
       <SpecialCollectionModal
         isOpen={showSpecialCollectionModal}
         onClose={() => setShowSpecialCollectionModal(false)}
@@ -514,47 +720,130 @@ const Dashboard = () => {
     </div>
   );
 
-  // CHANGED: Complete overhaul of the collector dashboard as per your request
   const renderCollectorDashboard = () => (
     <div className="space-y-6">
-      {/* REMOVED: Top action buttons are gone */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
           <p className="text-gray-600">Here's your collection dashboard</p>
         </div>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => navigate('/routes')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center space-x-2"
+          >
+            <RouteIcon className="h-4 w-4" />
+            <span>View Routes</span>
+          </button>
+          <button 
+            onClick={() => navigate('/collections')}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+          >
+            <TruckIcon className="h-4 w-4" />
+            <span>Collections</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <p className="text-sm font-medium text-gray-500 truncate">Assigned Routes</p>
-          <p className="mt-1 text-3xl font-semibold text-gray-900">{stats.routes?.total || 0}</p>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <RouteIcon className="h-6 w-6 text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Assigned Routes
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.routes?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <p className="text-sm font-medium text-gray-500 truncate">Today's Total Stops</p>
-          <p className="mt-1 text-3xl font-semibold text-gray-900">{stats.collectionsToday?.total || 0}</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calendar className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Today's Collections
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {todaysCollections.length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <p className="text-sm font-medium text-gray-500 truncate">Completed Stops</p>
-          <p className="mt-1 text-3xl font-semibold text-green-600">{stats.collectionsToday?.completed || 0}</p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TruckIcon className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total Collections
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.collections?.overview?.total || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <p className="text-sm font-medium text-gray-500 truncate">Pending Stops</p>
-          <p className="mt-1 text-3xl font-semibold text-orange-600">
-            {(stats.collectionsToday?.total || 0) - (stats.collectionsToday?.completed || 0)}
-          </p>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircleIcon className="h-6 w-6 text-purple-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Active Routes
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.routes?.active || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Routes and Collections Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* CHANGED: Assigned Routes now shows ALL routes */}
+        {/* Assigned Routes */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">My Routes</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">My Routes</h3>
+              <button 
+                onClick={() => navigate('/routes')}
+                className="text-blue-600 hover:text-blue-500 text-sm"
+              >
+                View All
+              </button>
+            </div>
           </div>
-          <div className="p-6 max-h-[600px] overflow-y-auto"> {/* Added scroll for long lists */}
+          <div className="p-6">
             {collectorRoutes.length === 0 ? (
               <div className="text-center py-8">
                 <RouteIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -563,7 +852,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {collectorRoutes.map((route) => (
+                {collectorRoutes.slice(0, 3).map((route) => (
                   <div key={route._id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -573,15 +862,28 @@ const Dashboard = () => {
                         <div>
                           <h4 className="text-sm font-medium text-gray-900">{route.name}</h4>
                           <div className="text-xs text-gray-500 flex items-center space-x-1">
+                            <Navigation className="h-3 w-3" />
                             <span>{route.cities?.startCity} → {route.cities?.endCity}</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm text-gray-900">{route.wasteBins?.length || 0} stops</div>
-                        <div className="text-xs capitalize text-gray-500">{route.schedule?.frequency}</div>
+                        <div className="text-xs text-gray-500">{route.schedule?.frequency}</div>
                       </div>
                     </div>
+                    
+                    {route.schedule && (
+                      <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <ClockIcon className="h-3 w-3" />
+                          <span>{route.schedule.startTime} - {route.schedule.endTime}</span>
+                        </div>
+                        <div>
+                          <span className="capitalize">{route.schedule.daysOfWeek?.join(', ')}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -589,45 +891,52 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* CHANGED: Today's Collections now shows ALL stops with an action button */}
+        {/* Today's Collections */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Today's Collection Stops</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Today's Collections</h3>
+              <button 
+                onClick={() => navigate('/collections')}
+                className="text-blue-600 hover:text-blue-500 text-sm"
+              >
+                View All
+              </button>
+            </div>
           </div>
-          <div className="p-6 max-h-[600px] overflow-y-auto"> {/* Added scroll for long lists */}
+          <div className="p-6">
             {todaysCollections.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No collections today</h3>
-                <p className="mt-1 text-sm text-gray-500">Enjoy your day or check upcoming schedules.</p>
+                <p className="mt-1 text-sm text-gray-500">Enjoy your day off or check upcoming schedules.</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {todaysCollections.map((collection) => (
+                {todaysCollections.slice(0, 5).map((collection) => (
                   <div key={collection._id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3">
-                        <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center ${collection.status === 'completed' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                          {collection.status === 'completed' ? <CheckCircleIcon className="h-5 w-5 text-green-600" /> : <TrashIcon className="h-5 w-5 text-blue-600" />}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                          <TrashIcon className="h-4 w-4 text-green-600" />
                         </div>
                         <div>
-                          <h4 className={`text-sm font-medium ${collection.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                            {collection.wasteBin?.location?.address || 'Address not available'}
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {collection.wasteBin?.binId || 'Collection'}
                           </h4>
                           <div className="text-xs text-gray-500">
-                            Bin ID: {collection.wasteBin?.binId} • Priority: {collection.priority || 'Normal'}
+                            {collection.wasteType} • {collection.status}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        {collection.status !== 'completed' && (
-                          <button
-                            onClick={() => handleMarkAsCollected(collection._id)}
-                            className="bg-green-500 text-white px-3 py-1 text-xs font-semibold rounded-md hover:bg-green-600"
-                          >
-                            Collected
-                          </button>
-                        )}
+                        <div className="text-sm text-gray-900">
+                          {new Date(collection.scheduledDate).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500">{collection.priority}</div>
                       </div>
                     </div>
                   </div>
@@ -638,27 +947,68 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* REMOVED: Quick Actions panel simplified */}
+      {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* The first two quick actions have been removed */}
+            <QuickActionButton
+              icon={<TruckIcon className="h-5 w-5 text-green-600 mr-3" />}
+              title="Start Collection"
+              description="Begin today's collection route"
+              onClick={() => navigate('/collections')}
+            />
+            <QuickActionButton
+              icon={<MapPinIcon className="h-5 w-5 text-blue-600 mr-3" />}
+              title="View Routes"
+              description="Check assigned routes and schedules"
+              onClick={() => navigate('/routes')}
+            />
             <QuickActionButton
               icon={<DocumentArrowDownIcon className="h-5 w-5 text-purple-600 mr-3" />}
               title="Collection Report"
               description="Submit collection completion report"
-              onClick={() => navigate('/collections/report')} // Assuming a report page
+              onClick={() => navigate('/collections')}
             />
           </div>
         </div>
       </div>
+
+      {/* Recent Activity */}
+      {recentActivity.length > 0 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Recent Collections</h3>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center space-x-4">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <TrashIcon className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900">
+                      Collected {activity.wasteType} from {activity.wasteBin?.binId}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(activity.completedAt || activity.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {activity.status}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  // Main render logic
   if (user.userType === 'admin') {
     return renderAdminDashboard();
   } else if (user.userType === 'collector') {
