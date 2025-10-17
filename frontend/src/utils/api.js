@@ -213,6 +213,8 @@ export const routeAPI = {
   optimizeRoute: (id, algorithm) => api.post(`/routes/${id}/optimize`, { algorithm }),
   getCollectorRoutes: (collectorId) => api.get(`/routes/collector/${collectorId}`),
   getRouteStats: () => api.get('/routes/stats/overview'),
+  markBinAsCollected: (routeId, binId) => api.patch(`/routes/${routeId}/bins/${binId}/complete`),
+  revertBinStatus: (routeId, binId) => api.patch(`/routes/${routeId}/bins/${binId}/revert`),
 };
 
 export const companyService = {
