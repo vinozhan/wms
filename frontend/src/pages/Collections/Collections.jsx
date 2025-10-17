@@ -14,24 +14,29 @@ import {
 } from '@heroicons/react/24/outline';
 import { QrCode, Scan, Navigation, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { CollectionScanForm, ScheduleCollectionModal, CollectionApprovalModal } from '../../components/Collections';
+import { Modal } from '../../components/common';
 
 const Collections = () => {
   const { user } = useAuth();
-  const [collections, setCollections] = useState([]);
+  const [allCollections, setAllCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showScanForm, setShowScanForm] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [isCompletingCollection, setIsCompletingCollection] = useState(false);
 
   useEffect(() => {
     fetchCollections();
-  }, [filter]);
+  }, []); // Only fetch once on component mount
 
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      const params = filter !== 'all' ? { status: filter } : {};
-      const response = await collectionAPI.getCollections(params);
-      setCollections(response.data.collections);
+      const response = await collectionAPI.getCollections({}); // Fetch all collections
+      setAllCollections(response.data.collections);
     } catch (error) {
       console.error('Failed to fetch collections:', error);
       toast.error('Failed to load collections');
@@ -45,6 +50,7 @@ const Collections = () => {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'scheduled': return 'bg-yellow-100 text-yellow-800';
+      case 'requested': return 'bg-orange-100 text-orange-800';
       case 'missed': return 'bg-red-100 text-red-800';
       case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -74,19 +80,60 @@ const Collections = () => {
     try {
       await collectionAPI.startCollection(collectionId);
       toast.success('Collection started successfully!');
-      fetchCollections();
+      
+      // Always refresh collections to get the latest data
+      await fetchCollections();
+      
+      // If currently viewing scheduled tab, switch to in_progress tab to see the updated collection
+      if (filter === 'scheduled') {
+        setFilter('in_progress');
+      }
     } catch (error) {
-      toast.error('Failed to start collection');
+      console.error('Start collection error:', error);
+      toast.error(error.response?.data?.error || 'Failed to start collection');
     }
   };
 
-  const completeCollection = async (collectionId, data) => {
+  // Filter collections based on current filter
+  const filteredCollections = filter === 'all' 
+    ? allCollections 
+    : allCollections.filter(collection => collection.status === filter);
+
+  const openScanForm = async (collection) => {
     try {
-      await collectionAPI.completeCollection(collectionId, data);
-      toast.success('Collection completed successfully!');
-      fetchCollections();
+      // Fetch fresh bin data to get updated capacity
+      const freshBinResponse = await wasteBinAPI.getWasteBin(collection.wasteBin._id);
+      const updatedCollection = {
+        ...collection,
+        wasteBin: freshBinResponse.data.wasteBin
+      };
+      
+      setSelectedCollection(updatedCollection);
+      setShowScanForm(true);
     } catch (error) {
+      console.error('Failed to fetch fresh bin data:', error);
+      // Fallback to using existing collection data
+      setSelectedCollection(collection);
+      setShowScanForm(true);
+    }
+  };
+
+  const completeCollection = async (data) => {
+    if (isCompletingCollection) return; // Prevent double submission
+    
+    try {
+      setIsCompletingCollection(true);
+      await collectionAPI.completeCollection(selectedCollection._id, data);
+      toast.success('Collection completed and bill generated!');
+      setShowScanForm(false);
+      setSelectedCollection(null);
+      await fetchCollections();
+    } catch (error) {
+      console.error('Failed to complete collection:', error);
       toast.error('Failed to complete collection');
+      throw error;
+    } finally {
+      setIsCompletingCollection(false);
     }
   };
 
@@ -100,7 +147,39 @@ const Collections = () => {
     }
   };
 
-  const todaysCollections = collections.filter(collection => {
+  const approveCollection = async (collection) => {
+    setSelectedCollection(collection);
+    setShowApprovalModal(true);
+  };
+
+  const handleApprovalSubmit = async (approvalData) => {
+    try {
+      await collectionAPI.approveCollection(selectedCollection._id, approvalData);
+      toast.success('Collection request approved and scheduled');
+      setShowApprovalModal(false);
+      setSelectedCollection(null);
+      fetchCollections();
+    } catch (error) {
+      console.error('Failed to approve collection:', error);
+      toast.error('Failed to approve collection');
+    }
+  };
+
+  const rejectCollection = async (collection) => {
+    try {
+      const reason = prompt('Please provide a reason for rejection:');
+      if (reason !== null) {
+        await collectionAPI.rejectCollection(collection._id, reason);
+        toast.success('Collection request rejected');
+        fetchCollections();
+      }
+    } catch (error) {
+      console.error('Failed to reject collection:', error);
+      toast.error('Failed to reject collection');
+    }
+  };
+
+  const todaysCollections = allCollections.filter(collection => {
     const today = new Date().toDateString();
     const scheduledDate = new Date(collection.scheduledDate).toDateString();
     return today === scheduledDate;
@@ -162,7 +241,7 @@ const Collections = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {collections.filter(c => c.status === 'completed').length}
+                    {allCollections.filter(c => c.status === 'completed').length}
                   </dd>
                 </dl>
               </div>
@@ -180,7 +259,25 @@ const Collections = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">In Progress</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {collections.filter(c => c.status === 'in_progress').length}
+                    {allCollections.filter(c => c.status === 'in_progress').length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CalendarIcon className="h-6 w-6 text-orange-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Requested</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {allCollections.filter(c => c.status === 'requested').length}
                   </dd>
                 </dl>
               </div>
@@ -198,7 +295,7 @@ const Collections = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Missed</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {collections.filter(c => c.status === 'missed').length}
+                    {allCollections.filter(c => c.status === 'missed').length}
                   </dd>
                 </dl>
               </div>
@@ -210,7 +307,7 @@ const Collections = () => {
       {/* Filter Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {['all', 'scheduled', 'in_progress', 'completed', 'missed'].map((status) => (
+          {['all', 'requested', 'scheduled', 'in_progress', 'completed', 'missed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -222,7 +319,7 @@ const Collections = () => {
             >
               {status === 'all' ? 'All Collections' : status.replace('_', ' ')}
               <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
-                {status === 'all' ? collections.length : collections.filter(c => c.status === status).length}
+                {status === 'all' ? allCollections.length : allCollections.filter(c => c.status === status).length}
               </span>
             </button>
           ))}
@@ -230,7 +327,7 @@ const Collections = () => {
       </div>
 
       {/* Collections List */}
-      {collections.length === 0 ? (
+      {filteredCollections.length === 0 ? (
         <div className="text-center py-12">
           <TruckIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No collections found</h3>
@@ -240,14 +337,16 @@ const Collections = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {collections.map((collection) => (
+          {filteredCollections.map((collection) => (
             <CollectionCard
               key={collection._id}
               collection={collection}
               userType={user.userType}
               onStart={() => startCollection(collection._id)}
-              onComplete={(data) => completeCollection(collection._id, data)}
+              onComplete={(collection) => openScanForm(collection)}
               onMarkMissed={(reason) => markMissed(collection._id, reason)}
+              onApprove={(collection) => approveCollection(collection)}
+              onReject={(collection) => rejectCollection(collection)}
             />
           ))}
         </div>
@@ -258,12 +357,51 @@ const Collections = () => {
         <ScheduleCollectionModal
           isOpen={showScheduleModal}
           onClose={() => setShowScheduleModal(false)}
-          onSubmit={(data) => {
-            // Handle schedule collection
-            toast.success('Collection scheduled successfully!');
-            setShowScheduleModal(false);
-            fetchCollections();
+          onSubmit={async (data) => {
+            try {
+              await collectionAPI.createCollection(data);
+              toast.success('Collection scheduled successfully!');
+              setShowScheduleModal(false);
+              fetchCollections();
+            } catch (error) {
+              console.error('Failed to schedule collection:', error);
+              toast.error('Failed to schedule collection');
+            }
           }}
+        />
+      )}
+
+      {/* Collection Scan Form Modal */}
+      <Modal
+        isOpen={showScanForm}
+        onClose={() => {
+          setShowScanForm(false);
+          setSelectedCollection(null);
+        }}
+        title="Complete Collection & Generate Bill"
+        size="lg"
+      >
+        {selectedCollection && (
+          <CollectionScanForm
+            collection={selectedCollection}
+            onComplete={completeCollection}
+            onCancel={() => {
+              setShowScanForm(false);
+              setSelectedCollection(null);
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Collection Approval Modal */}
+      {showApprovalModal && selectedCollection && (
+        <CollectionApprovalModal
+          collection={selectedCollection}
+          onClose={() => {
+            setShowApprovalModal(false);
+            setSelectedCollection(null);
+          }}
+          onApprove={handleApprovalSubmit}
         />
       )}
     </div>
@@ -271,9 +409,10 @@ const Collections = () => {
 };
 
 // Collection Card Component
-const CollectionCard = ({ collection, userType, onStart, onComplete, onMarkMissed }) => {
+const CollectionCard = ({ collection, userType, onStart, onComplete, onMarkMissed, onApprove, onReject }) => {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showMissedModal, setShowMissedModal] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -365,26 +504,59 @@ const CollectionCard = ({ collection, userType, onStart, onComplete, onMarkMisse
           </div>
         )}
 
+        {/* Admin Actions for Requested Collections */}
+        {userType === 'admin' && collection.status === 'requested' && (
+          <div className="flex space-x-3">
+            <button
+              onClick={() => onApprove && onApprove(collection)}
+              className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center justify-center space-x-2"
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              <span>Approve & Schedule</span>
+            </button>
+            <button
+              onClick={() => onReject && onReject(collection)}
+              className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center justify-center space-x-2"
+            >
+              <ExclamationTriangleIcon className="h-4 w-4" />
+              <span>Reject</span>
+            </button>
+          </div>
+        )}
+
+        {/* Collector Actions */}
         {userType === 'collector' && (
           <div className="flex space-x-3">
             {collection.status === 'scheduled' && (
               <button
-                onClick={onStart}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center space-x-2"
+                onClick={async () => {
+                  setIsStarting(true);
+                  try {
+                    await onStart();
+                  } finally {
+                    setIsStarting(false);
+                  }
+                }}
+                disabled={isStarting}
+                className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center space-x-2 ${
+                  isStarting 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } text-white`}
               >
                 <PlayIcon className="h-4 w-4" />
-                <span>Start Collection</span>
+                <span>{isStarting ? 'Starting...' : 'Start Collection'}</span>
               </button>
             )}
             
             {collection.status === 'in_progress' && (
               <>
                 <button
-                  onClick={() => setShowCompleteModal(true)}
+                  onClick={() => onComplete(collection)}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center justify-center space-x-2"
                 >
-                  <CheckCircleIcon className="h-4 w-4" />
-                  <span>Complete</span>
+                  <Scan className="h-4 w-4" />
+                  <span>Scan & Complete</span>
                 </button>
                 <button
                   onClick={() => setShowMissedModal(true)}
@@ -399,17 +571,6 @@ const CollectionCard = ({ collection, userType, onStart, onComplete, onMarkMisse
         )}
       </div>
 
-      {/* Complete Collection Modal */}
-      {showCompleteModal && (
-        <CompleteCollectionModal
-          isOpen={showCompleteModal}
-          onClose={() => setShowCompleteModal(false)}
-          onSubmit={(data) => {
-            onComplete(data);
-            setShowCompleteModal(false);
-          }}
-        />
-      )}
 
       {/* Mark Missed Modal */}
       {showMissedModal && (
@@ -565,83 +726,6 @@ const MarkMissedModal = ({ isOpen, onClose, onSubmit }) => {
               className="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
             >
               Mark as Missed
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Schedule Collection Modal
-const ScheduleCollectionModal = ({ isOpen, onClose, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    wasteBin: '',
-    scheduledDate: '',
-    collector: '',
-    wasteType: 'general'
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule Collection</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Waste Bin ID</label>
-            <input
-              type="text"
-              value={formData.wasteBin}
-              onChange={(e) => setFormData(prev => ({ ...prev, wasteBin: e.target.value }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="Enter bin ID"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Scheduled Date & Time</label>
-            <input
-              type="datetime-local"
-              value={formData.scheduledDate}
-              onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Waste Type</label>
-            <select
-              value={formData.wasteType}
-              onChange={(e) => setFormData(prev => ({ ...prev, wasteType: e.target.value }))}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="general">General Waste</option>
-              <option value="recyclable">Recyclable</option>
-              <option value="organic">Organic</option>
-              <option value="hazardous">Hazardous</option>
-              <option value="electronic">Electronic</option>
-            </select>
-          </div>
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
-            >
-              Schedule Collection
             </button>
           </div>
         </form>

@@ -275,7 +275,6 @@ router.delete('/:id',
 
 router.patch('/:id/sensor', 
   authMiddleware,
-  authorize('admin', 'collector'),
   paramValidation.mongoId,
   wasteBinValidation.updateSensor,
   async (req, res) => {
@@ -289,20 +288,28 @@ router.patch('/:id/sensor',
         });
       }
 
+      // Check permissions: admin/collector can update any bin, residents/business can only update their own bins
+      if (req.user.userType !== 'admin' && 
+          req.user.userType !== 'collector' && 
+          wasteBin.owner.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ 
+          error: 'Access denied. You can only update sensor data for bins you own.' 
+        });
+      }
+
       await wasteBin.updateSensorData({
         fillLevel,
         temperature,
         humidity
       });
 
+      // Return the complete updated waste bin data
+      const updatedWasteBin = await WasteBin.findById(wasteBin._id)
+        .populate('owner', 'name email userType');
+
       res.json({
         message: 'Sensor data updated successfully',
-        wasteBin: {
-          id: wasteBin._id,
-          fillLevel: wasteBin.sensorData.fillLevel,
-          status: wasteBin.status,
-          needsCollection: wasteBin.needsCollection
-        }
+        wasteBin: updatedWasteBin
       });
 
     } catch (error) {

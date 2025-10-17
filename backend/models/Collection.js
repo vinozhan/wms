@@ -14,7 +14,12 @@ const collectionSchema = new mongoose.Schema({
   collector: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Collector reference is required']
+    required: false // Allow null for resident/business requests
+  },
+  requester: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'Requester reference is required']
   },
   route: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,7 +34,7 @@ const collectionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'],
+    enum: ['requested', 'scheduled', 'in_progress', 'completed', 'missed', 'cancelled'],
     default: 'scheduled'
   },
   wasteData: {

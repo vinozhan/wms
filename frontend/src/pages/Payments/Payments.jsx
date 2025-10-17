@@ -11,28 +11,54 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { createPayHerePayment } from '../../utils/payhere';
+import { processPayHerePayment } from '../../utils/payhere';
+import { PaymentDetailsModal } from '../../components/Payments';
 
 // PayHere integration
 const PayHerePayment = ({ payment, onSuccess, onError }) => {
-  const payWithPayHere = () => {
-    createPayHerePayment({
-      payment,
-      onSuccess,
-      onError,
-      onDismissed: () => {
-        console.log('Payment dismissed by user');
-      }
-    });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const payWithPayHere = async () => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      await processPayHerePayment(payment._id, {
+        onSuccess: (orderId) => {
+          console.log('Payment completed:', orderId);
+          setIsProcessing(false);
+          if (onSuccess) onSuccess(orderId);
+        },
+        onError: (error) => {
+          console.error('Payment error:', error);
+          setIsProcessing(false);
+          if (onError) onError(error);
+        },
+        onDismissed: () => {
+          console.log('Payment dismissed by user');
+          setIsProcessing(false);
+        }
+      });
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      setIsProcessing(false);
+      if (onError) onError(error.message);
+    }
   };
 
   return (
     <button
       onClick={payWithPayHere}
-      className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center space-x-2"
+      disabled={isProcessing}
+      className={`w-full px-4 py-2 rounded-md flex items-center justify-center space-x-2 ${
+        isProcessing 
+          ? 'bg-gray-400 cursor-not-allowed' 
+          : 'bg-blue-600 hover:bg-blue-700'
+      } text-white`}
     >
       <CreditCardIcon className="h-5 w-5" />
-      <span>Pay with PayHere</span>
+      <span>{isProcessing ? 'Initializing...' : 'Pay with PayHere'}</span>
     </button>
   );
 };
@@ -42,6 +68,8 @@ const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
 
   useEffect(() => {
     fetchPayments();
@@ -76,6 +104,122 @@ const Payments = () => {
 
   const handlePaymentError = (error) => {
     toast.error('Payment failed: ' + error);
+  };
+
+  const handleViewDetails = (payment) => {
+    setSelectedPayment(payment);
+    setShowDetailsModal(true);
+  };
+
+  const handleDownloadInvoice = (payment) => {
+    try {
+      // Generate and download invoice PDF
+      generateInvoicePDF(payment);
+      toast.success('Invoice downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to download invoice:', error);
+      toast.error('Failed to download invoice');
+    }
+  };
+
+  const generateInvoicePDF = (payment) => {
+    // Create a simple HTML invoice
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${payment.invoiceNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .invoice-details { margin-bottom: 20px; }
+          .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          .table th { background-color: #f2f2f2; }
+          .total { font-weight: bold; background-color: #f9f9f9; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Smart Waste Management System</h1>
+          <h2>Invoice ${payment.invoiceNumber}</h2>
+        </div>
+        
+        <div class="invoice-details">
+          <p><strong>Bill To:</strong> ${user.name}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Invoice Date:</strong> ${formatDate(payment.createdAt)}</p>
+          <p><strong>Due Date:</strong> ${formatDate(payment.dueDate)}</p>
+          <p><strong>Status:</strong> ${payment.status.toUpperCase()}</p>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Quantity</th>
+              <th>Rate</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payment.charges?.wasteCharges?.map(charge => `
+              <tr>
+                <td>${charge.wasteType.charAt(0).toUpperCase() + charge.wasteType.slice(1)} Waste</td>
+                <td>${charge.weight} kg</td>
+                <td>${formatCurrency(charge.rate, payment.totals.currency)}/kg</td>
+                <td>${formatCurrency(charge.amount, payment.totals.currency)}</td>
+              </tr>
+            `).join('') || ''}
+            
+            ${payment.charges?.penalties?.map(penalty => `
+              <tr>
+                <td>Penalty: ${penalty.description}</td>
+                <td>1</td>
+                <td>${formatCurrency(penalty.amount, payment.totals.currency)}</td>
+                <td>${formatCurrency(penalty.amount, payment.totals.currency)}</td>
+              </tr>
+            `).join('') || ''}
+            
+            <tr>
+              <td colspan="3"><strong>Subtotal</strong></td>
+              <td><strong>${formatCurrency(payment.totals.subtotal, payment.totals.currency)}</strong></td>
+            </tr>
+            <tr>
+              <td colspan="3"><strong>Tax</strong></td>
+              <td><strong>${formatCurrency(payment.totals.taxAmount, payment.totals.currency)}</strong></td>
+            </tr>
+            ${payment.totals.discountAmount > 0 ? `
+              <tr>
+                <td colspan="3"><strong>Discount</strong></td>
+                <td><strong>-${formatCurrency(payment.totals.discountAmount, payment.totals.currency)}</strong></td>
+              </tr>
+            ` : ''}
+            <tr class="total">
+              <td colspan="3"><strong>Total Amount</strong></td>
+              <td><strong>${formatCurrency(payment.totals.totalAmount, payment.totals.currency)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 30px;">
+          <p><strong>Payment Terms:</strong> Payment is due within 7 days of invoice date.</p>
+          <p><strong>Thank you for your business!</strong></p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create and download the PDF
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Invoice_${payment.invoiceNumber}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const getStatusColor = (status) => {
@@ -318,10 +462,16 @@ const Payments = () => {
                 {/* Actions */}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                   <div className="flex space-x-3">
-                    <button className="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                    <button 
+                      onClick={() => handleViewDetails(payment)}
+                      className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                    >
                       View Details
                     </button>
-                    <button className="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                    <button 
+                      onClick={() => handleDownloadInvoice(payment)}
+                      className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                    >
                       Download Invoice
                     </button>
                   </div>
@@ -338,6 +488,17 @@ const Payments = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Payment Details Modal */}
+      {showDetailsModal && selectedPayment && (
+        <PaymentDetailsModal
+          payment={selectedPayment}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedPayment(null);
+          }}
+        />
       )}
     </div>
   );

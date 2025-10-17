@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const paymentSchema = new mongoose.Schema({
   paymentId: {
     type: String,
-    required: [true, 'Payment ID is required'],
     unique: true
   },
   user: {

@@ -177,6 +177,11 @@ const collectionValidation = {
       .isMongoId()
       .withMessage('Invalid waste bin ID'),
     
+    body('collector')
+      .optional()
+      .isMongoId()
+      .withMessage('Invalid collector ID'),
+    
     body('scheduledDate')
       .isISO8601()
       .withMessage('Invalid scheduled date format'),
