@@ -137,11 +137,18 @@ const WasteBins = () => {
   };
 
 
+  // const hasPendingRequest = (binId) => {
+  //   return pendingRequests.some(request => 
+  //     request.wasteBin === binId || request.wasteBin._id === binId
+  //   );
+  // };
   const hasPendingRequest = (binId) => {
-    return pendingRequests.some(request => 
-      request.wasteBin === binId || request.wasteBin._id === binId
-    );
-  };
+  return pendingRequests.some(request => 
+    request.wasteBin === binId || 
+    (request.wasteBin && request.wasteBin._id === binId)
+  );
+};
+
 
   const handleRequestCollection = async (bin) => {
     try {

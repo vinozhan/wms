@@ -356,6 +356,127 @@ const queryValidation = {
   ]
 };
 
+const companyValidation = {
+  create: [
+    body('name')
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Name must be between 1 and 100 characters'),
+    body('registrationNumber')
+      .isLength({ min: 1 })
+      .withMessage('Registration number is required'),
+    body('contact.email').isEmail().withMessage('Valid email is required'),
+    body('contact.phone').isLength({ min: 1 }).withMessage('Phone is required'),
+    handleValidationErrors
+  ],
+  
+  update: [
+    param('id').isMongoId().withMessage('Invalid company ID'),
+    body('name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('contact.email').optional().isEmail(),
+    handleValidationErrors
+  ]
+};
+
+const issueValidation = {
+  create: [
+    body('title')
+      .trim()
+      .isLength({ min: 1, max: 200 })
+      .withMessage('Title must be between 1 and 200 characters'),
+    body('description')
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage('Description is required'),
+    body('type')
+      .isIn(['missed_pickup', 'damaged_bin', 'complaint', 'compliance_violation', 'other'])
+      .withMessage('Invalid issue type'),
+    body('priority')
+      .optional()
+      .isIn(['low', 'medium', 'high', 'critical'])
+      .withMessage('Invalid priority level'),
+    handleValidationErrors
+  ]
+};
+
+const programValidation = {
+  create: [
+    body('name')
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Name must be between 1 and 100 characters'),
+    body('description')
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage('Description is required'),
+    body('type')
+      .isIn(['recycling', 'composting', 'hazardous_waste', 'bulk_collection', 'special'])
+      .withMessage('Invalid program type'),
+    body('budget.allocated')
+      .isFloat({ min: 0 })
+      .withMessage('Allocated budget must be a positive number'),
+    handleValidationErrors
+  ]
+};
+
+const validateCompany = [
+  body('name')
+    .notEmpty()
+    .withMessage('Company name is required')
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Name must be between 1 and 100 characters'),
+  
+  body('registrationNumber')
+    .notEmpty()
+    .withMessage('Registration number is required'),
+  
+  body('contact.email')
+    .isEmail()
+    .withMessage('Valid email is required'),
+  
+  body('contact.phone')
+    .notEmpty()
+    .withMessage('Phone number is required'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+    next();
+  }
+];
+
+const validateIssue = [
+  body('title')
+    .notEmpty()
+    .withMessage('Title is required')
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Title must be between 1 and 200 characters'),
+  
+  body('description')
+    .notEmpty()
+    .withMessage('Description is required'),
+  
+  body('type')
+    .isIn(['missed_pickup', 'damaged_bin', 'complaint', 'compliance_violation', 'other'])
+    .withMessage('Valid issue type is required'),
+
+  body('assignedTo')
+  .optional()
+  .custom((value) => {
+    if (value && value !== '') {
+      return mongoose.Types.ObjectId.isValid(value);
+    }
+    return true;
+  })
+  .withMessage('Assigned company must be a valid ID'),
+];
+
 module.exports = {
   handleValidationErrors,
   userValidation,
@@ -365,5 +486,10 @@ module.exports = {
   routeValidation,
   analyticsValidation,
   paramValidation,
-  queryValidation
+  queryValidation,
+  companyValidation,
+  issueValidation,
+  programValidation,
+  validateCompany,
+  validateIssue
 };

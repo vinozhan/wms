@@ -62,8 +62,10 @@ const wasteBinSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'maintenance', 'full'],
-    default: 'active'
+    // enum: ['active', 'inactive', 'maintenance', 'full'],
+    // default: 'active'
+    enum: ['pending', 'completed'],
+    default: 'pending'
   },
   lastCollection: {
     date: { type: Date },
