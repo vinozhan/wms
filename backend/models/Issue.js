@@ -33,7 +33,8 @@ const issueSchema = new mongoose.Schema({
   },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company'
+    ref: 'Company',
+    required: false
   },
   location: {
     address: String,

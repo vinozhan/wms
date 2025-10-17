@@ -45,9 +45,17 @@ const CompanyModal = ({ company, onClose, onSubmit }) => {
   }, [company]);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(company ? company._id : null, formData);
-  };
+  e.preventDefault();
+  
+  // Ensure we're passing the formData, not the company ID
+  if (company) {
+    // For update: pass id and formData
+    onSubmit(company._id, formData);
+  } else {
+    // For create: pass only formData
+    onSubmit(formData);
+  }
+};
 
   const handleAddServiceArea = () => {
     if (serviceAreaInput.trim() && !formData.serviceAreas.includes(serviceAreaInput.trim())) {

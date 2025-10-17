@@ -8,6 +8,11 @@ import {
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const IssueTable = ({ issues, loading, onEdit, onResolve, onEscalate }) => {
+    // Add debug log to see what data we're receiving
+  console.log('📦 [IssueTable] Received issues prop:', issues);
+  console.log('👀 [IssueTable] issues.issues value:', issues?.issues);
+  console.log('🔢 [IssueTable] Number of issues:', issues?.issues?.length);
+  
   const getPriorityBadge = (priority) => {
     const priorityConfig = {
       critical: { color: 'bg-red-100 text-red-800', label: 'Critical' },

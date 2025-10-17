@@ -1,33 +1,84 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { companyService } from '../../utils/api';
 
 const IssueModal = ({ issue, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    type: 'missed_pickup',
-    priority: 'medium',
-    reportedBy: 'Municipal Council',
-    assignedTo: '',
-    location: {
-      address: ''
+  title: '',
+  description: '',
+  type: 'missed_pickup',
+  priority: 'medium',
+  reportedBy: 'Municipal Council',
+  assignedTo: '', // Use empty string instead of null
+  location: {
+    address: ''
+  }
+});
+
+const [companies, setCompanies] = useState([]);
+const [companiesLoading, setCompaniesLoading] = useState(true);
+
+useEffect(() => {
+  const fetchCompanies = async () => {
+    try {
+      console.log('Starting to fetch companies...');
+      const response = await companyService.getAll();
+      console.log('Raw companies API response:', response);
+
+      // The response structure is: response.data.data.companies
+      if (response && response.data && response.data.companies) {
+        console.log('Companies found at response.data.companies:', response.data.companies);
+        setCompanies(response.data.companies);
+      } 
+      // Alternative structure: response.data.data.companies (double nested)
+      else if (response && response.data && response.data.data && response.data.data.companies) {
+        console.log('Companies found at response.data.data.companies:', response.data.data.companies);
+        setCompanies(response.data.data.companies);
+      }
+      // Direct array
+      else if (response && Array.isArray(response)) {
+        console.log('Direct companies array:', response);
+        setCompanies(response);
+      }
+      // Direct array in data property
+      else if (response && response.data && Array.isArray(response.data)) {
+        console.log('Companies array at response.data:', response.data);
+        setCompanies(response.data);
+      }
+      else {
+        console.log('Unexpected response format, trying to explore:', response);
+        
+        // Debug: log all possible paths
+        if (response) {
+          console.log('Available keys in response:', Object.keys(response));
+          if (response.data) {
+            console.log('Available keys in response.data:', Object.keys(response.data));
+            if (response.data.data) {
+              console.log('Available keys in response.data.data:', Object.keys(response.data.data));
+            }
+          }
+        }
+        
+        setCompanies([]);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      setCompanies([]);
+    } finally {
+      setCompaniesLoading(false);
     }
-  });
+  };
 
-  const [companies, setCompanies] = useState([]);
+  fetchCompanies();
+}, []);
 
-  useEffect(() => {
-    // Mock companies data - in real app, this would come from API
-    setCompanies([
-      { _id: '1', name: 'Green Waste Solutions' },
-      { _id: '2', name: 'Eco Collection Services' },
-      { _id: '3', name: 'Urban Sanitation Ltd' },
-      { _id: '4', name: 'Metro Waste Management' }
-    ]);
-  }, []);
+    useEffect(() => {
+    console.log('Companies state updated:', companies);
+    }, [companies]);
 
   useEffect(() => {
     if (issue) {
+      console.log('Setting form data for editing issue:', issue);
       setFormData({
         title: issue.title || '',
         description: issue.description || '',
@@ -39,13 +90,43 @@ const IssueModal = ({ issue, onClose, onSubmit }) => {
           address: issue.location?.address || ''
         }
       });
-    }
+    } else {
+    // Reset to initial state when creating new issue
+    setFormData({
+      title: '',
+      description: '',
+      type: 'missed_pickup',
+      priority: 'medium',
+      reportedBy: 'Municipal Council',
+      assignedTo: '', // Use empty string for unassigned
+      location: {
+        address: ''
+      }
+    });
+  }
   }, [issue]);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(issue ? issue._id : null, formData);
-  };
+  e.preventDefault();
+  
+  console.log('Submitting issue data:', formData); // Debug log
+  
+  // Validate required fields
+//   if (!formData.title || !formData.description || !formData.type) {
+//     setError('Please fill in all required fields');
+//     return;
+//   }
+
+  if (issue) {
+    // For update: pass id and formData
+    console.log('Updating issue:', issue._id, formData);
+    onSubmit(issue._id, formData);
+  } else {
+    // For create: pass only formData
+    console.log('Creating issue:', formData);
+    onSubmit(formData);
+  }
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -158,14 +239,31 @@ const IssueModal = ({ issue, onClose, onSubmit }) => {
               <select
                 name="assignedTo"
                 value={formData.assignedTo}
-                onChange={handleChange}
+                onChange={(e) => {
+                    console.log('Selected company:', e.target.value);
+                    setFormData({
+                    ...formData,
+                    assignedTo: e.target.value
+                    });
+                }}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
+                >
                 <option value="">Unassigned</option>
-                {companies.map(company => (
-                  <option key={company._id} value={company._id}>{company.name}</option>
-                ))}
-              </select>
+                {companiesLoading ? (
+                    <option disabled>Loading companies...</option>
+                ) : companies.length > 0 ? (
+                    companies.map(company => {
+                    console.log('Rendering company option:', company._id, company.name);
+                    return (
+                        <option key={company._id} value={company._id}>
+                        {company.name}
+                        </option>
+                    );
+                    })
+                ) : (
+                    <option disabled>No companies available</option>
+                )}
+                </select>
             </div>
           </div>
 

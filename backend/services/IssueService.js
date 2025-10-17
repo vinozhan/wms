@@ -40,7 +40,19 @@ class IssueService {
   }
 
   async createIssue(issueData) {
-    const issue = new Issue(issueData);
+  try {
+    console.log('IssueService creating issue with data:', issueData);
+    
+    // Remove assignedTo if it's empty string to avoid validation errors
+    const cleanIssueData = { ...issueData };
+    if (cleanIssueData.assignedTo === '') {
+      delete cleanIssueData.assignedTo;
+    }
+
+    console.log('Cleaned issue data for creation:', cleanIssueData);
+
+    // Use cleanIssueData instead of issueData
+    const issue = new Issue(cleanIssueData);
     const savedIssue = await issue.save();
 
     // Update company issues count if assigned
@@ -61,14 +73,31 @@ class IssueService {
     }
 
     return savedIssue;
+  } catch (error) {
+    console.error('Error in IssueService.createIssue:', error);
+    throw error;
   }
+}
 
   async updateIssue(id, updateData) {
-    return await Issue.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('assignedTo', 'name contact.email');
+    try {
+      // Remove assignedTo if it's empty string
+      const cleanUpdateData = { ...updateData };
+      if (cleanUpdateData.assignedTo === '') {
+        delete cleanUpdateData.assignedTo;
+      }
+
+      console.log('Cleaned issue data for update:', cleanUpdateData);
+
+      return await Issue.findByIdAndUpdate(
+        id,
+        cleanUpdateData,
+        { new: true, runValidators: true }
+      ).populate('assignedTo', 'name contact.email');
+    } catch (error) {
+      console.error('Error in IssueService.updateIssue:', error);
+      throw error;
+    }
   }
 
   async resolveIssue(id, resolutionData) {

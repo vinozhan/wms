@@ -419,6 +419,64 @@ const programValidation = {
   ]
 };
 
+const validateCompany = [
+  body('name')
+    .notEmpty()
+    .withMessage('Company name is required')
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Name must be between 1 and 100 characters'),
+  
+  body('registrationNumber')
+    .notEmpty()
+    .withMessage('Registration number is required'),
+  
+  body('contact.email')
+    .isEmail()
+    .withMessage('Valid email is required'),
+  
+  body('contact.phone')
+    .notEmpty()
+    .withMessage('Phone number is required'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+    next();
+  }
+];
+
+const validateIssue = [
+  body('title')
+    .notEmpty()
+    .withMessage('Title is required')
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Title must be between 1 and 200 characters'),
+  
+  body('description')
+    .notEmpty()
+    .withMessage('Description is required'),
+  
+  body('type')
+    .isIn(['missed_pickup', 'damaged_bin', 'complaint', 'compliance_violation', 'other'])
+    .withMessage('Valid issue type is required'),
+
+  body('assignedTo')
+  .optional()
+  .custom((value) => {
+    if (value && value !== '') {
+      return mongoose.Types.ObjectId.isValid(value);
+    }
+    return true;
+  })
+  .withMessage('Assigned company must be a valid ID'),
+];
+
 module.exports = {
   handleValidationErrors,
   userValidation,
@@ -431,5 +489,7 @@ module.exports = {
   queryValidation,
   companyValidation,
   issueValidation,
-  programValidation
+  programValidation,
+  validateCompany,
+  validateIssue
 };

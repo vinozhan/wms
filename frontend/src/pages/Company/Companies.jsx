@@ -22,41 +22,69 @@ const Companies = () => {
   });
 
   const fetchCompanies = async () => {
-    try {
-      setLoading(true);
-      const response = await companyService.getAll(filters);
+  try {
+    setLoading(true);
+    const response = await companyService.getAll(filters);
+    console.log('Companies API Response:', response); // Debug log
+    
+    // Make sure we're setting the companies array correctly
+    if (response && response.data) {
       setCompanies(response.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    } else {
+      console.error('Unexpected API response format:', response);
+      setCompanies({ companies: [], totalPages: 0, currentPage: 1, total: 0 });
     }
-  };
+  } catch (err) {
+    console.error('Error fetching companies:', err);
+    setError(err.message);
+    // Set empty state on error
+    setCompanies({ companies: [], totalPages: 0, currentPage: 1, total: 0 });
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchCompanies();
   }, [filters]);
 
   const handleCreateCompany = async (companyData) => {
-    try {
-      await companyService.create(companyData);
-      await fetchCompanies();
-      setShowModal(false);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  try {
+    console.log('Creating company:', companyData);
+    const response = await companyService.create(companyData);
+    console.log('Create company response:', response); // Debug log
+    
+    // Close modal first
+    setShowModal(false);
+    
+    // Small delay to ensure backend has processed the creation
+    setTimeout(() => {
+      fetchCompanies();
+    }, 500);
+    
+    // Also force refresh after 2 seconds as backup
+    setTimeout(() => {
+      fetchCompanies();
+    }, 2000);
+    
+  } catch (err) {
+    console.error('Error creating company:', err);
+    setError(err.message);
+  }
+};
 
-  const handleUpdateCompany = async (id, companyData) => {
-    try {
-      await companyService.update(id, companyData);
-      await fetchCompanies();
-      setShowModal(false);
-      setSelectedCompany(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+const handleUpdateCompany = async (id, companyData) => {
+  try {
+    console.log('Updating company:', id, companyData); // Debug log
+    await companyService.update(id, companyData);
+    await fetchCompanies();
+    setShowModal(false);
+    setSelectedCompany(null);
+  } catch (err) {
+    console.error('Error updating company:', err);
+    setError(err.message);
+  }
+};
 
   const handleEnforceCompliance = async (action) => {
     try {

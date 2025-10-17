@@ -22,39 +22,80 @@ const Issues = () => {
     type: ''
   });
 
-  const fetchIssues = async () => {
-    try {
-      setLoading(true);
-      const response = await issueService.getAll(filters);
-      setIssues(response.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+ // In Issues.jsx - fix the data extraction
+const fetchIssues = async () => {
+  try {
+    setLoading(true);
+    console.log('🚀 [Frontend] Fetching issues with filters:', filters);
+    
+    const response = await issueService.getAll(filters);
+    console.log('📦 [Frontend] Full API response:', response);
+    console.log('🔍 [Frontend] response.data structure:', JSON.stringify(response.data, null, 2));
+    
+    // CORRECTED: Extract from response.data.data, not response.data
+    const apiData = response.data.data;
+    console.log('🎯 [Frontend] apiData (response.data.data):', apiData);
+    console.log('📋 [Frontend] apiData.issues:', apiData?.issues);
+    
+    // Set the entire API data structure to maintain pagination info
+    setIssues(apiData);
+    
+  } catch (err) {
+    console.error('❌ [Frontend] Error fetching issues:', err);
+    console.error('🔍 [Frontend] Error details:', err.response?.data);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchIssues();
   }, [filters]);
 
-  const handleCreateIssue = async (issueData) => {
-    try {
-      await issueService.create(issueData);
-      await fetchIssues();
-      setShowModal(false);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+//   const handleCreateIssue = async (issueData) => {
+//     try {
+//       await issueService.create(issueData);
+//       await fetchIssues();
+//       setShowModal(false);
+//     } catch (err) {
+//       setError(err.message);
+//     }
+//   };
+
+const handleCreateIssue = async (issueData) => {
+  try {
+    console.log('Creating issue with data:', issueData);
+    
+    // Ensure assignedTo is properly handled
+    const cleanIssueData = {
+      ...issueData,
+      assignedTo: issueData.assignedTo || undefined // Remove assignedTo if it's empty string
+    };
+    
+    await issueService.create(cleanIssueData);
+    await fetchIssues();
+    setShowModal(false);
+  } catch (err) {
+    console.error('Error creating issue:', err);
+    setError(err.message);
+  }
+};
 
   const handleUpdateIssue = async (id, issueData) => {
     try {
-      await issueService.update(id, issueData);
+      // Clean the data before sending
+    const cleanIssueData = {
+      ...issueData,
+      assignedTo: issueData.assignedTo || undefined
+    };
+    
+    await issueService.update(id, cleanIssueData);
       await fetchIssues();
       setShowModal(false);
       setSelectedIssue(null);
     } catch (err) {
+      console.error('Error updating issue:', err);
       setError(err.message);
     }
   };

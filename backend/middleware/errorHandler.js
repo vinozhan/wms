@@ -1,7 +1,6 @@
 const errorHandler = (err, req, res, next) => {
   console.error('Error occurred:', err);
 
-  // Always use a numeric status code
   let statusCode = 500;
   let message = 'Server Error';
 
@@ -10,18 +9,27 @@ const errorHandler = (err, req, res, next) => {
     statusCode = err.statusCode;
     message = err.message;
   } 
-  // Handle mongoose errors
+  // Handle mongoose CastError (like invalid ObjectId)
   else if (err.name === 'CastError') {
-    statusCode = 404;
-    message = 'Resource not found';
-  } else if (err.code === 11000) {
+    statusCode = 400;
+    message = `Invalid ${err.path}: ${err.value}`;
+  }
+  // Handle mongoose duplicate key
+  else if (err.code === 11000) {
     statusCode = 400;
     message = 'Duplicate field value entered';
-  } else if (err.name === 'ValidationError') {
+  } 
+  // Handle mongoose validation error
+  else if (err.name === 'ValidationError') {
     statusCode = 400;
     const messages = Object.values(err.errors).map(val => val.message);
     message = `Invalid input data: ${messages.join('. ')}`;
   } 
+  // Handle JSON parse errors
+  else if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Invalid JSON in request body';
+  }
   // Handle other errors with message
   else if (err.message) {
     message = err.message;

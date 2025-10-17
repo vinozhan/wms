@@ -5,7 +5,7 @@ class CompanyService {
     const {
       page = 1,
       limit = 10,
-      sortBy = 'overallScore',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
       complianceStatus,
       search
@@ -24,6 +24,8 @@ class CompanyService {
       ];
     }
 
+    console.log('Company query:', query); // Debug log
+
     const companies = await Company.find(query)
       .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .limit(limit * 1)
@@ -32,13 +34,18 @@ class CompanyService {
 
     const total = await Company.countDocuments(query);
 
+    console.log(`Found ${companies.length} companies out of ${total}`); // Debug log
+
     return {
       companies,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       total
     };
-  }
+  }  catch (error) {
+      console.error('Error in CompanyService.getAllCompanies:', error);
+      throw error;
+    }
 
   async getCompanyById(id) {
     return await Company.findById(id);
